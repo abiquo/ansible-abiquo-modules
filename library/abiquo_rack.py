@@ -134,92 +134,58 @@ import traceback, json
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 
-from ansible.module_utils.abiquo_common import AbiquoCommon
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo import datacenter
 
 def core(module):
-    name = module.params['name']
-    datacenter = module.params['datacenter']
-    vlan_min = module.params['vlan_min']
-    vlan_max = module.params['vlan_max']
-    vlan_avoided = module.params['vlan_avoided']
-    vlan_reserved = module.params['vlan_reserved']
-    nrsq = module.params['nrsq']
-    ha_enabled = eval(module.params['ha_enabled'])
-    state = module.params['state']
+    name = module.params.get('name')
+    state = module.params.get('state')
+    dc_name = module.params.get('datacenter')
 
-    common = AbiquoCommon(module)
-    api = common.client
-
-    datacenters = common.get_datacenters()
-    dc = filter(lambda x: x.name == datacenter, datacenters)
+    datacenters = datacenter.list(module)
+    dc = filter(lambda x: x.name == dc_name, datacenters)
     if len(dc) == 0:
-        module.fail_json(rc=1, msg='Datcenter "%s" has not been found!' % datacenter)
+        module.fail_json(rc=1, msg='Datcenter "%s" has not been found!' % dc)
     dc = dc[0]
 
-    racks = common.get_racks(dc)
+    racks = datacenter.get_racks(dc)
     for rack in racks:
         if rack.name == name:
             if state == 'present':
-                module.exit_json(msg='Rack "%s" already exists' % name, changed=False, rack=rack.json)
+                module.exit_json(msg='Rack "%s" already exists' % name, changed=False, rack=rack.json, rack_link=rack._extract_link('edit'))
             else:
-                c, rresp = rack.delete()
                 try:
-                    common.check_response(204, c, rresp)
+                    datacenter.delete_rack(rack)
                 except Exception as ex:
-                    module.fail_json(rc=c, msg=ex.message)
+                    module.fail_json(msg=ex.message)
                 module.exit_json(msg='Rack "%s" deleted' % name, changed=True)
 
     if state == 'absent':
         module.exit_json(msg='Rack "%s" does not exist' % name, changed=False)
     else:
-        rackjson = { 
-            'vlanIdMin': vlan_min,
-            'vlanIdMax': vlan_max,
-            'vlanPerVdcReserved': vlan_reserved,
-            'nrsq': nrsq,
-            'name': name,
-            'vlansIdAvoided': vlan_avoided,
-            'haEnabled': ha_enabled
-        }
-
-        c, rack = dc.follow('racks').post(
-            headers={'accept': 'application/vnd.abiquo.rack+json','content-type': 'application/vnd.abiquo.rack+json'},
-            data=json.dumps(rackjson)
-        )
         try:
-            common.check_response(201, c, rack)
+            rack = datacenter.create_rack(dc, module)
         except Exception as ex:
-            module.fail_json(rc=c, msg=ex.message)
-        module.exit_json(msg='Rack "%s" created' % name, changed=True, rack=rack.json)
+            module.fail_json(msg=ex.message)
+        module.exit_json(msg='Rack "%s" created' % name, changed=True, rack=rack.json, rack_link=rack._extract_link('edit'))
 
 def main():
-    module = AnsibleModule(
-        argument_spec=dict(
-            api_url=dict(default=None, required=True),
-            verify=dict(default=True, required=False),
-            api_user=dict(default=None, required=False),
-            api_pass=dict(default=None, required=False, no_log=True),
-            app_key=dict(default=None, required=False),
-            app_secret=dict(default=None, required=False),
-            token=dict(default=None, required=False, no_log=True),
-            token_secret=dict(default=None, required=False, no_log=True),
-            name=dict(default=None, required=True),
-            datacenter=dict(default=None, required=True),
-            vlan_min=dict(default=2, required=False),
-            vlan_max=dict(default=4094, required=False),
-            vlan_avoided=dict(default=None, required=False),
-            vlan_reserved=dict(default=1, required=False),
-            nrsq=dict(default=10, required=False),
-            ha_enabled=dict(default=False, required=False),
-            state=dict(default='present', choices=['present', 'absent']),
-        ),
+    arg_spec = abiquo_argument_spec()
+    arg_spec.update(
+        name=dict(default=None, required=True),
+        datacenter=dict(default=None, required=True),
+        vlan_min=dict(default=2, required=False),
+        vlan_max=dict(default=4094, required=False),
+        vlan_avoided=dict(default=None, required=False),
+        vlan_reserved=dict(default=1, required=False),
+        nrsq=dict(default=10, required=False),
+        ha_enabled=dict(default=False, required=False, type='bool'),
+        state=dict(default='present', choices=['present', 'absent']),
     )
-
-    if module.params['api_user'] is None and module.params['app_key'] is None:
-        module.fail_json(msg="either basic auth or OAuth credentials are required")
-
-    if not 'verify' in module.params:
-        module.params['verify'] = True
+    module = AnsibleModule(
+        argument_spec=arg_spec
+    )
 
     try:
         core(module)

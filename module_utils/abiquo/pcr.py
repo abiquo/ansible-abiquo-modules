@@ -1,0 +1,59 @@
+import json
+
+from common import AbiquoCommon
+from abiquo.client import check_response
+
+def list(module):
+    common = AbiquoCommon(module)
+    api = common.client
+
+    code, pcrs = api.admin.publiccloudregions.get(headers={'Accept': 'application/vnd.abiquo.publiccloudregions+json'})
+    check_response(200, code, pcrs)
+
+    all_pcrs = []
+    for pcr in pcrs:
+        all_pcrs.append(pcr)
+
+    return all_pcrs
+
+def lookup_region(module):
+    common = AbiquoCommon(module)
+    provider = module.params.get('provider')
+    region = module.params.get('region')
+
+    c, htypes = common.client.config.hypervisortypes.get(headers={'accept':'application/vnd.abiquo.hypervisortypes+json'})
+    check_response(200, c, htypes)
+
+    htype = filter(lambda x: x.name == provider, htypes)
+    if len(htype) == 0:
+        return None
+    htype = htype[0]
+
+    c, regions = htype.follow('regions').get()
+    check_response(200, c, regions)
+
+    region = filter(lambda x: x.name == region, regions)    
+    if len(region) == 0:
+        return None
+    region = region[0]
+
+    return region
+
+def create_pcr(region, module):
+    common = AbiquoCommon(module)
+
+    reglnk = region._extract_link('self')
+    reglnk['rel'] = 'region'
+    pcrjson = {
+        'name': module.params.get('name'),
+        'provider': module.params.get('provider'),
+        'links': [ reglnk ]
+    }
+    c, pcr = common.client.admin.publiccloudregions.post(
+        headers={'accept': 'application/vnd.abiquo.publiccloudregion+json',
+                'content-Type': 'application/vnd.abiquo.publiccloudregion+json'},
+        data=json.dumps(pcrjson)
+    )
+    common.check_response(201, c, pcr)
+
+    return pcr

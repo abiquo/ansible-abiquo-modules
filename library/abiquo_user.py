@@ -156,10 +156,14 @@ import traceback, json
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 
-from ansible.module_utils.abiquo_common import AbiquoCommon
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
 
 def update_user(user, module, api):
-    common = AbiquoCommon(module)
+    try:
+        common = AbiquoCommon(module)
+    except ValueError as ex:
+        module.fail_json(msg=ex.message)
 
     for k, v in module.params.items():
         user.__setattr__(k, v)
@@ -191,7 +195,10 @@ def core(module):
 
     state = module.params['state']
 
-    common = AbiquoCommon(module)
+    try:
+        common = AbiquoCommon(module)
+    except ValueError as ex:
+        module.fail_json(msg=ex.message)
     api = common.client
 
     try:
@@ -257,40 +264,28 @@ def core(module):
         module.exit_json(changed=True, user=usr.json)
 
 def main():
-    module = AnsibleModule(
-        argument_spec=dict(
-            api_url=dict(default=None, required=True),
-            verify=dict(default=True, required=False, type='bool'),
-            api_user=dict(default=None, required=False),
-            api_pass=dict(default=None, required=False, no_log=True),
-            app_key=dict(default=None, required=False),
-            app_secret=dict(default=None, required=False),
-            token=dict(default=None, required=False, no_log=True),
-            token_secret=dict(default=None, required=False, no_log=True),
-            availableVirtualDatacenters=dict(default=None, required=False, type='list'),
-            email=dict(default=None, required=True),
-            locale=dict(default='en_US', required=False),
-            name=dict(default=None, required=True),
-            nick=dict(default=None, required=True),
-            password=dict(default=None, required=False, no_log=True),
-            surname=dict(default=None, required=False),
-            active=dict(default=True, required=False, type='bool'),
-            firstLogin=dict(default=False, required=False, type='bool'),
-            locked=dict(default=False, required=False, type='bool'),
-            publicSshKey=dict(default=None, required=False),
-            phoneNumber=dict(default=None, required=False),
-            enterprise=dict(default=None, required=True, type='dict'),
-            role=dict(default=None, required=True, type='dict'),
-            scope=dict(default=None, required=False, type='dict'),
-            state=dict(default='present', choices=['present', 'absent']),
-        ),
+    arg_spec = abiquo_argument_spec()
+    arg_spec.update(
+        availableVirtualDatacenters=dict(default=None, required=False, type='list'),
+        email=dict(default=None, required=True),
+        locale=dict(default='en_US', required=False),
+        name=dict(default=None, required=True),
+        nick=dict(default=None, required=True),
+        password=dict(default=None, required=False, no_log=True),
+        surname=dict(default=None, required=False),
+        active=dict(default=True, required=False, type='bool'),
+        firstLogin=dict(default=False, required=False, type='bool'),
+        locked=dict(default=False, required=False, type='bool'),
+        publicSshKey=dict(default=None, required=False),
+        phoneNumber=dict(default=None, required=False),
+        enterprise=dict(default=None, required=True, type='dict'),
+        role=dict(default=None, required=True, type='dict'),
+        scope=dict(default=None, required=False, type='dict'),
+        state=dict(default='present', choices=['present', 'absent']),
     )
-
-    if module.params['api_user'] is None and module.params['app_key'] is None:
-        module.fail_json(msg="either basic auth or OAuth credentials are required")
-
-    if not 'verify' in module.params:
-        module.params['verify'] = True
+    module = AnsibleModule(
+        argument_spec=arg_spec
+    )
 
     try:
         core(module)

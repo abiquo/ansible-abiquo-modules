@@ -120,94 +120,89 @@ import traceback, json, time
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 
-from ansible.module_utils.abiquo_common import AbiquoCommon
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo import datacenter
+from ansible.module_utils.abiquo import template
 
 def core(module):
     template_name = module.params['template_name']
     remote_repository_url = module.params['remote_repository_url']
-    datacenter = module.params['datacenter']
+    dc_name = module.params['datacenter']
     state = module.params['state']
 
-    common = AbiquoCommon(module)
+    try:
+        common = AbiquoCommon(module)
+    except ValueError as ex:
+        module.fail_json(msg=ex.message)
     api = common.client
 
-    c, template = common.find_template(datacenter, template_name)
-    if c != 0:
-        module.fail_json(rc=c, msg=template)
+    datacenters = datacenter.list(module)
+    dc = filter(lambda x: x.name == dc_name, datacenters)
+    if len(dc) == 0:
+        module.fail_json(rc=1, msg='Datcenter "%s" has not been found!' % dc)
+    dc = dc[0]
 
-    if template is not None:
+    try:
+        tpl = datacenter.find_template(module)
+    except Exception as ex:
+        module.fail_json(msg=ex.message)
+
+    if tpl is not None:
         if state == 'present' or state == 'download':
-            if module.params['attribs'] is not None:
-                for k, v in module.params['attribs'].iteritems():
-                    setattr(template, k, v)
-                    c, template = template.put()
-                    try:
-                        common.check_response(200, c, template)
-                    except Exception as ex:
-                        module.fail_json(rc=c, msg=ex.message)
-            module.exit_json(msg='Template %s already exists in datacenter %s' % (template_name, datacenter), changed=False)
+            tpl_link = tpl._extract_link('edit')
+            if module.params.get('attribs') is not None:
+                try:
+                    tpl = template.update(tpl, module)
+                except Exception as ex:
+                    module.fail_json(msg=ex.message)
+                module.exit_json(msg='Template %s updated in datacenter %s' % (template_name, dc_name), changed=True, template=tpl.json, template_link=tpl_link)
+            module.exit_json(msg='Template %s already exists in datacenter %s' % (template_name, dc_name), changed=False, template=tpl.json, template_link=tpl_link)
         else:
-            c, tresp = template.delete()
             try:
-                common.check_response(204, c, tresp)
+                template.delete(tpl)
             except Exception as ex:
-                module.fail_json(rc=c, msg=ex.message)
-            module.exit_json(msg='Template %s in datacenter %s deleted' % (template_name, datacenter), changed=True)
+                module.fail_json(msg=ex.message)
+            module.exit_json(msg='Template %s in datacenter %s deleted' % (template_name, dc_name), changed=True)
     else:
         if state == 'absent':
-            module.exit_json(msg='Template %s in datacenter %s does not exist' % (template_name, datacenter), changed=False)
+            module.exit_json(msg='Template %s in datacenter %s does not exist' % (template_name, dc_name), changed=False)
         elif state == 'download':
-            c, download = common.download_template(datacenter, remote_repository_url, template_name)
             try:
-                common.check_response(202, c, download)
+                task = template.download(module, dc_name, remote_repository_url, template_name)
             except Exception as ex:
-                module.fail_json(rc=c, msg=ex.message)
+                module.fail_json(msg=ex.message)
 
-            if module.params['wait_for_download']:
-                common.enable_debug()
-                l = common.fix_link(download, 'status', type='application/vnd.abiquo.task+json')
-                c, task = l.get()
-                while True:
-                    try:
-                        common.check_response(200, c, task)
-                    except Exception as ex:
-                        module.fail_json(rc=c, msg=ex.message)
-                    if task.state == 'FINISHED_SUCCESSFULLY':
-                        module.exit_json(msg='Template %s downloaded in datacenter %s' % (template_name, datacenter), changed=True)
-                    elif task.state == 'FINISHED_UNSUCCESSFULLY':
-                        module.fail_json(rc=1, msg="Download task failed, check events.")
-                    else:
-                        time.sleep(10)
-                        t = common.fix_link(task, 'self', type='application/vnd.abiquo.task+json')
-                        c, task = t.get()
+            if module.params.get('wait_for_download'):
+                try:
+                    task = common.track_task(task, module.params.get('max_attempts'), module.params.get('retry_delay'))
+                except Exception as ex:
+                    module.fail_json(msg=ex.message)
+                except ValueError as ve:
+                    module.fail_json(msg="Track download task timed out.")
+
+                if task.state == 'FINISHED_SUCCESSFULLY':
+                    tpl = template.lookup_result(task)
+                    tpl_link = tpl._extract_link('edit')
+                    module.exit_json(msg='Template %s downloaded in datacenter %s' % (template_name, dc_name), changed=True, template=tpl.json, template_link=tpl_link)
+                elif task.state == 'FINISHED_UNSUCCESSFULLY':
+                    module.fail_json(msg="Download task failed, check events.")
             else:
                 module.exit_json(msg='Template %s downloading in datacenter %s' % (template_name, datacenter), changed=True)
 
 def main():
-    module = AnsibleModule(
-        argument_spec=dict(
-            api_url=dict(default=None, required=True),
-            verify=dict(default=True, required=False, type='bool'),
-            api_user=dict(default=None, required=False),
-            api_pass=dict(default=None, required=False, no_log=True),
-            app_key=dict(default=None, required=False),
-            app_secret=dict(default=None, required=False),
-            token=dict(default=None, required=False, no_log=True),
-            token_secret=dict(default=None, required=False, no_log=True),
-            template_name=dict(default=None, required=True),
-            remote_repository_url=dict(default=None, required=True),
-            datacenter=dict(default=None, required=True),
-            attribs=dict(default=None, required=False, type=dict),
-            wait_for_download=dict(default=False, required=False),
-            state=dict(default='present', choices=['present', 'absent', 'download']),
-        ),
+    arg_spec = abiquo_argument_spec()
+    arg_spec.update(
+        template_name=dict(default=None, required=True),
+        remote_repository_url=dict(default=None, required=True),
+        datacenter=dict(default=None, required=True),
+        attribs=dict(default=None, required=False, type=dict),
+        wait_for_download=dict(default=False, required=False, type='bool'),
+        state=dict(default='present', choices=['present', 'absent', 'download']),
     )
-
-    if module.params['api_user'] is None and module.params['app_key'] is None:
-        module.fail_json(msg="either basic auth or OAuth credentials are required")
-
-    if not 'verify' in module.params:
-        module.params['verify'] = True
+    module = AnsibleModule(
+        argument_spec=arg_spec
+    )
 
     try:
         core(module)

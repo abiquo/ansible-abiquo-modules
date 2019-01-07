@@ -103,81 +103,58 @@ import traceback, json
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 
-from ansible.module_utils.abiquo_common import AbiquoCommon
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo import pcr
 
 def core(module):
-    name = module.params['name']
-    provider = module.params['provider']
-    region = module.params['region']
-    state = module.params['state']
-
-    common = AbiquoCommon(module)
-    api = common.client
+    name = module.params.get('name')
+    provider = module.params.get('provider')
+    region = module.params.get('region')
+    state = module.params.get('state')
 
     try:
-        c, pcrs = api.admin.publiccloudregions.get(headers={'Accept': 'application/vnd.abiquo.publiccloudregions+json'})
-        common.check_response(200, c, pcrs)
+        pcrs = pcr.list(module)
     except Exception as ex:
-        module.fail_json(rc=c, msg=ex.message)
+        module.fail_json(msg=ex.message)
 
-    for pcr in pcrs:
-        if pcr.name == name:
+    for pubreg in pcrs:
+        if pubreg.name == name:
             if state == 'present':
-                module.exit_json(msg='Public cloud region %s from provider %s already exists' % (region, provider), changed=False, pcr=pcr.json)
+                pcr_link = pubreg._extract_link('edit')
+                module.exit_json(msg='Public cloud region %s from provider %s already exists' % (region, provider), changed=False, pcr=pubreg.json, pcr_link=pcr_link)
             else:
-                c, pcrresp = pcr.delete()
                 try:
-                    common.check_response(204, c, pcrresp)
+                    pcr.delete(pubreg)
                 except Exception as ex:
-                    module.fail_json(rc=c, msg=ex.message)
+                    module.fail_json(msg=ex.message)
                 module.exit_json(msg='Public cloud region %s from provider %s deleted' % (region, provider), changed=True)
 
     if state == 'absent':
         module.exit_json(msg='Public cloud region %s from provider %s does not exist' % (region, provider), changed=False)
     else:
-        reg = common.lookup_region(provider, region)
+        reg = pcr.lookup_region(module)
         if reg is None:
             module.fail_json(rc=1, msg='Region %s in provider %s has not been found!' % (provider, region))
-        reglnk = reg._extract_link('self')
-        reglnk['rel'] = 'region'
-        pcrjson = {
-            'name': name,
-            'provider': provider,
-            'links': [ reglnk ]
-        }
-        c, pcr = api.admin.publiccloudregions.post(
-            headers={'accept': 'application/vnd.abiquo.publiccloudregion+json','content-Type': 'application/vnd.abiquo.publiccloudregion+json'},
-            data=json.dumps(pcrjson)
-        )
+
         try:
-            common.check_response(201, c, pcr)
+            pcreg = pcr.create_pcr(reg, module)
+            pcr_link = pcreg._extract_link('edit')
         except Exception as ex:
-            module.fail_json(rc=c, msg=ex.message)
-        module.exit_json(msg='Public cloud region %s from provider %s created' % (region, provider), changed=True, pcr=pcr.json)
+            module.fail_json(msg=ex.message)
+        module.exit_json(msg='Public cloud region %s from provider %s created' % (region, provider), changed=True, pcr=pcreg.json, pcr_link=pcr_link)
 
 def main():
-    module = AnsibleModule(
-        argument_spec=dict(
-            api_url=dict(default=None, required=True),
-            verify=dict(default=True, required=False),
-            api_user=dict(default=None, required=False),
-            api_pass=dict(default=None, required=False, no_log=True),
-            app_key=dict(default=None, required=False),
-            app_secret=dict(default=None, required=False),
-            token=dict(default=None, required=False, no_log=True),
-            token_secret=dict(default=None, required=False, no_log=True),
-            name=dict(default=None, required=True),
-            provider=dict(default=None, required=True),
-            region=dict(default=None, required=True),
-            state=dict(default='present', choices=['present', 'absent']),
-        ),
+    arg_spec = abiquo_argument_spec()
+    arg_spec.update(
+        name=dict(default=None, required=True),
+        provider=dict(default=None, required=True),
+        region=dict(default=None, required=True),
+        state=dict(default='present', choices=['present', 'absent']),
     )
-
-    if module.params['api_user'] is None and module.params['app_key'] is None:
-        module.fail_json(msg="either basic auth or OAuth credentials are required")
-
-    if not 'verify' in module.params:
-        module.params['verify'] = True
+    module = AnsibleModule(
+        argument_spec=arg_spec
+    )
 
     try:
         core(module)

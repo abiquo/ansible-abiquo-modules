@@ -135,30 +135,36 @@ import traceback, json
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 
-from ansible.module_utils.abiquo_common import AbiquoCommon
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo import datacenter
+from ansible.module_utils.abiquo import rack
 
 def core(module):
-    ip = module.params['ip']
-    datacenter = module.params['datacenter']
-    rack = module.params['rack']
-    state = module.params['state']
+    ip = module.params.get('ip')
+    dc_name = module.params.get('datacenter')
+    rack_name = module.params.get('rack')
+    state = module.params.get('state')
 
-    common = AbiquoCommon(module)
-    api = common.client
-
-    dcs = common.get_datacenters()
-    dcsf = filter(lambda x: x.name == datacenter, dcs)
+    try:
+        common = AbiquoCommon(module)
+    except ValueError as ex:
+        module.fail_json(msg=ex.message)
+    
+    # dcs = common.get_datacenters()
+    dcs = datacenter.list(module)
+    dcsf = filter(lambda x: x.name == dc_name, dcs)
     if len(dcs) == 0:
-        module.fail_json(rc=1, msg='Datacenter "%s" has not been found!' % datacenter)
+        module.fail_json(rc=1, msg='Datacenter "%s" has not been found!' % dc_name)
     dc = dcsf[0]
 
-    racks = common.get_racks(dc)
-    racksf = filter(lambda x: x.name == rack, racks)
+    racks = datacenter.get_racks(dc)
+    racksf = filter(lambda x: x.name == rack_name, racks)
     if len(racksf) == 0:
-        module.fail_json(rc=1, msg='Rack "%s" has not been found!' % rack)
+        module.fail_json(rc=1, msg='Rack "%s" has not been found!' % rack_name)
     rackdto = racksf[0]
 
-    machines = common.get_machines(rackdto)
+    machines = rack.get_machines(rackdto)
     machine = next((m for m in machines if m.ip == ip), None)
     
     if machine is None:
@@ -167,57 +173,45 @@ def core(module):
             module.exit_json(msg='Machine with IP %s does not exist' % ip, changed=False)
         else:
             # CREATE IT
-            c, machine = common.create_machine(dc, rackdto, module.params)
             try:
-                common.check_response(201, c, machine)
+                machine = rack.create_machine(rackdto, module)
+                machine_link = machine._extract_link('edit')
             except Exception as ex:
-                module.fail_json(rc=c, msg=ex.message)
-            module.exit_json(msg='Machine with IP %s has been created' % ip, changed=True)
+                module.fail_json(msg=ex.message)
+            module.exit_json(msg='Machine with IP %s has been created' % ip, changed=True, machine=machine.json, machine_link=machine_link)
     else:
         if state == 'absent':
-            c, mresp = machine.delete()
             try:
-                common.check_response(204, c, mresp)
+                rack.delete_machine(machine)
             except Exception as ex:
-                module.fail_json(rc=c, msg=ex.message)
+                module.fail_json(msg=ex.message)
             module.exit_json(msg='Machine with IP %s has been deleted' % ip, changed=True)
         else:
-            module.exit_json(msg='Machine with IP %s already exists' % ip, changed=False)
+            machine_link = machine._extract_link('edit')
+            module.exit_json(msg='Machine with IP %s already exists' % ip, changed=False, machine=machine.json, machine_link=machine_link)
 
 def main():
+    arg_spec = abiquo_argument_spec()
+    arg_spec.update(
+        ip=dict(default=None, required=True),
+        port=dict(default=None, required=True, type=int),
+        hyp_type=dict(default=None, required=True),
+        ip_service=dict(default=None, required=False),
+        user=dict(default='root', required=False),
+        password=dict(default='temporal', required=False, no_log=True),
+        datastore_name=dict(default=None, required=False),
+        datastore_root=dict(default=None, required=False),
+        datastore_dir=dict(default=None, required=False),
+        service_nic=dict(default=None, required=True),
+        datacenter=dict(default=None, required=True),
+        rack=dict(default=None, required=True),
+        state=dict(default='present', choices=['present', 'absent']),
+    )
     module = AnsibleModule(
-        argument_spec=dict(
-            api_url=dict(default=None, required=True),
-            verify=dict(default=True, required=False),
-            api_user=dict(default=None, required=False),
-            api_pass=dict(default=None, required=False, no_log=True),
-            app_key=dict(default=None, required=False),
-            app_secret=dict(default=None, required=False),
-            token=dict(default=None, required=False, no_log=True),
-            token_secret=dict(default=None, required=False, no_log=True),
-            ip=dict(default=None, required=True),
-            port=dict(default=None, required=True, type=int),
-            hyp_type=dict(default=None, required=True),
-            ip_service=dict(default=None, required=False),
-            user=dict(default='root', required=False),
-            password=dict(default='temporal', required=False, no_log=True),
-            datastore_name=dict(default=None, required=False),
-            datastore_root=dict(default=None, required=False),
-            datastore_dir=dict(default=None, required=False),
-            service_nic=dict(default=None, required=True),
-            datacenter=dict(default=None, required=True),
-            rack=dict(default=None, required=True),
-            state=dict(default='present', choices=['present', 'absent']),
-        ),
+        argument_spec=arg_spec
     )
 
-    if module.params['api_user'] is None and module.params['app_key'] is None:
-        module.fail_json(msg="either basic auth or OAuth credentials are required")
-
-    if not 'verify' in module.params:
-        module.params['verify'] = True
-
-    if module.params['datastore_name'] is None and module.params['datastore_root'] is None:
+    if module.params.get('datastore_name') is None and module.params.get('datastore_root') is None:
         module.fail_json(msg="either datastore_name or datastore_root are required")
 
     try:

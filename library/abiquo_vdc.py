@@ -163,7 +163,8 @@ import traceback, json
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 
-from ansible.module_utils.abiquo_common import AbiquoCommon
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
 
 def core(module):
     name = module.params['name']
@@ -183,7 +184,10 @@ def core(module):
     cpuHard = module.params['cpuHard']
     state = module.params['state']
 
-    common = AbiquoCommon(module)
+    try:
+        common = AbiquoCommon(module)
+    except ValueError as ex:
+        module.fail_json(msg=ex.message)
     api = common.client
 
     try:
@@ -247,40 +251,28 @@ def core(module):
         module.exit_json(msg='VDC "%s" created' % name, changed=True, vdc=vdc.json)
 
 def main():
-    module = AnsibleModule(
-        argument_spec=dict(
-            api_url=dict(default=None, required=True),
-            verify=dict(default=True, required=False, type='bool'),
-            api_user=dict(default=None, required=False),
-            api_pass=dict(default=None, required=False, no_log=True),
-            app_key=dict(default=None, required=False),
-            app_secret=dict(default=None, required=False),
-            token=dict(default=None, required=False, no_log=True),
-            token_secret=dict(default=None, required=False, no_log=True),
-            name=dict(default=None, required=True),
-            enterprise=dict(default=None, required=False, type='dict'),
-            location=dict(default=None, required=True, type='dict'),
-            hypervisortype=dict(default=None, required=False),
-            network=dict(default=None, required=False, type='dict'),
-            vmsSoft=dict(default=0, required=False),
-            vmsHard=dict(default=0, required=False),
-            vlansSoft=dict(default=0, required=False),
-            vlansHard=dict(default=0, required=False),
-            publicIpsSoft=dict(default=0, required=False),
-            publicIpsHard=dict(default=0, required=False),
-            ramSoft=dict(default=0, required=False),
-            ramHard=dict(default=0, required=False),
-            cpuSoft=dict(default=0, required=False),
-            cpuHard=dict(default=0, required=False),
-            state=dict(default='present', choices=['present', 'absent']),
-        ),
+    arg_spec = abiquo_argument_spec()
+    arg_spec.update(
+        name=dict(default=None, required=True),
+        enterprise=dict(default=None, required=False, type='dict'),
+        location=dict(default=None, required=True, type='dict'),
+        hypervisortype=dict(default=None, required=False),
+        network=dict(default=None, required=False, type='dict'),
+        vmsSoft=dict(default=0, required=False),
+        vmsHard=dict(default=0, required=False),
+        vlansSoft=dict(default=0, required=False),
+        vlansHard=dict(default=0, required=False),
+        publicIpsSoft=dict(default=0, required=False),
+        publicIpsHard=dict(default=0, required=False),
+        ramSoft=dict(default=0, required=False),
+        ramHard=dict(default=0, required=False),
+        cpuSoft=dict(default=0, required=False),
+        cpuHard=dict(default=0, required=False),
+        state=dict(default='present', choices=['present', 'absent']),
     )
-
-    if module.params['api_user'] is None and module.params['app_key'] is None:
-        module.fail_json(msg="either basic auth or OAuth credentials are required")
-
-    if not 'verify' in module.params:
-        module.params['verify'] = True
+    module = AnsibleModule(
+        argument_spec=arg_spec
+    )
 
     try:
         core(module)

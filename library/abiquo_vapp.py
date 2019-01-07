@@ -76,6 +76,10 @@ options:
         description:
           -  Description of the virtual appliance
         required: False
+    force:
+        description:
+          - Wether or not to force the operation.
+        required: False
     restricted:
         description:
           - Define if the vapp is an restricted vapp.
@@ -84,7 +88,7 @@ options:
         description:
           - State of the vApp
         required: True
-        choices: ["present", "absent"]
+        choices: ["present", "absent", "undeploy"]
         default: "present"
 '''
 
@@ -114,87 +118,98 @@ import traceback, json
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 
-from ansible.module_utils.abiquo_common import AbiquoCommon
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo import vapp as virtualappliance
 
-def core(module):
-    name = module.params['name']
-    vdc_json = module.params['vdc']
-    iconUrl = module.params['iconUrl']
-    description = module.params['description']
-    restricted = module.params['restricted']
-    state = module.params['state']
-
-    common = AbiquoCommon(module)
-    api = common.client
-
-    vdc = common.getDTO(vdc_json)
-    if vdc is None:
-        module.fail_json(rc=c, msg="VDC '%s' not found!" % vdc_json['name'])
+def lookup_vapp(module):
+    vdc_link = module.params.get('vdc')
+    vapp_name = module.params.get('name')
 
     try:
-        code, vapps = vdc.follow('virtualappliances').get()
-        common.check_response(200, code, vapps)
+        common = AbiquoCommon(module)
+    except ValueError as ex:
+        module.fail_json(msg=ex.message)
+
+    vapp = None
+    try:
+        vdc = common.get_dto_from_link(vdc_link)
+        vapp = virtualappliance.find_vapp_in_vdc(vdc, vapp_name)
     except Exception as ex:
-        module.fail_json(rc=c, msg=ex.message)
+        module.fail_json(msg=ex.message)
 
-    for vapp in vapps:
-        if vapp.name == name:
-            if state == 'present':
-                module.exit_json(msg='vApp "%s"' % name, changed=False, vapp=vapp.json, vapp_link=vapp._extract_link('edit'))
-            else:
-                c, response = vapp.delete()
-                try:
-                    common.check_response(204, c, response)
-                except Exception as ex:
-                    module.fail_json(rc=c, msg=ex.message)
-                module.exit_json(msg='vApp "%s" deleted' % name, changed=True)
+    return vapp
 
-    if state == 'absent':
-        module.exit_json(msg='vApp "%s"' % name, changed=False)
-    else:
-        vapp_dict = {
-            "name": name,
-            "iconUrl": iconUrl,
-            "description": description,
-            "restricted": restricted
-        }
+def vapp_present(module):
+    vapp = lookup_vapp(module)
 
-        c, vapp = vdc.follow('virtualappliances').post(
-            headers={'accept': 'application/vnd.abiquo.virtualappliance+json',
-                    'content-Type': 'application/vnd.abiquo.virtualappliance+json'},
-            data=json.dumps(vapp_dict)
-        )
+    if vapp is None:
         try:
-            common.check_response(201, c, vapp)
+            vapp = virtualappliance.create_vapp(module)
+        except ValueError as exv:
+            module.fail_json(msg=exv.message)
         except Exception as ex:
-            module.fail_json(rc=c, msg=ex.message)
-        module.exit_json(msg='vApp "%s" created' % name, changed=True, vapp=vapp.json, vapp_link=vapp._extract_link('edit'))
+            module.fail_json(msg=ex.message)
+
+        vapp_link = vapp._extract_link('edit')
+        module.exit_json(msg='vApp "%s" created' % vapp.name, changed=True, vapp=vapp.json, vapp_link=vapp_link)
+    else:
+        vapp_link = vapp._extract_link('edit')
+        module.exit_json(msg='vApp "%s" already exists' % vapp.name, changed=False, vapp=vapp.json, vapp_link=vapp_link)
+
+def vapp_absent(module):
+    vapp = lookup_vapp(module)
+
+    if vapp is None:
+        module.exit_json(msg='vApp "%s" does not exist' % module.params.get('name'), changed=False)
+    else:
+        try:
+            virtualappliance.delete_vapp(vapp, module)
+        except Exception as ex:
+            module.fail_json(msg=ex.message)
+        module.exit_json(msg='vApp "%s" deleted' % vapp.name, changed=True)
+
+def vapp_undeploy(module):
+    vapp = lookup_vapp(module)
+
+    if vapp is None:
+        module.exit_json(msg='vApp "%s" does not exist' % module.params.get('name'), changed=False)
+    else:
+        vapp_link = vapp._extract_link('edit')
+
+        if vapp.state in [ 'NOT_ALLOCATED', 'NOT_DEPLOYED' ]:
+            module.exit_json(msg='vApp "%s" is already undeployed' % vapp.name, changed=False, vapp=vapp.json, vapp_link=vapp_link)
+        else:
+            try:
+                vapp = virtualappliance.undeploy_vapp(vapp, module)
+            except Exception as ex:
+                module.fail_json(msg=ex.message)
+            module.exit_json(msg='vApp "%s" has been undeployed' % vapp.name, changed=True, vapp=vapp.json, vapp_link=vapp_link)
+
+def core(module):
+    state = module.params.get('state')
+
+    if state == 'present':
+        vapp_present(module)
+    elif state == 'absent':
+        vapp_absent(module)
+    elif state == 'undeploy':
+        vapp_undeploy(module)
 
 def main():
-    module = AnsibleModule(
-        argument_spec=dict(
-            api_url=dict(default=None, required=True),
-            verify=dict(default=True, required=False, type='bool'),
-            api_user=dict(default=None, required=False),
-            api_pass=dict(default=None, required=False, no_log=True),
-            app_key=dict(default=None, required=False),
-            app_secret=dict(default=None, required=False),
-            token=dict(default=None, required=False, no_log=True),
-            token_secret=dict(default=None, required=False, no_log=True),
-            name=dict(default=None, required=True),
-            vdc=dict(default=None, required=True, type='dict'),
-            iconUrl=dict(default=None, required=False),
-            description=dict(default=None, required=False),
-            restricted=dict(default=False, required=False, type='bool'),
-            state=dict(default='present', choices=['present', 'absent']),
-        ),
+    arg_spec = abiquo_argument_spec()
+    arg_spec.update(
+        name=dict(default=None, required=True),
+        vdc=dict(default=None, required=True, type='dict'),
+        iconUrl=dict(default=None, required=False),
+        description=dict(default=None, required=False),
+        restricted=dict(default=False, required=False, type='bool'),
+        force=dict(default=False, required=False, type='bool'),
+        state=dict(default='present', choices=['present', 'absent', 'undeploy']),
     )
-
-    if module.params['api_user'] is None and module.params['app_key'] is None:
-        module.fail_json(msg="either basic auth or OAuth credentials are required")
-
-    if not 'verify' in module.params:
-        module.params['verify'] = True
+    module = AnsibleModule(
+        argument_spec=arg_spec
+    )
 
     try:
         core(module)

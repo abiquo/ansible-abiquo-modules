@@ -96,24 +96,16 @@ import traceback, json
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 
-from ansible.module_utils.abiquo_common import AbiquoCommon
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo import pcr
 
 def core(module):
-    params = module.params['params']
-    expression = module.params['expression']
-
-    common = AbiquoCommon(module)
-    api = common.client
-
-    if params is not None and not "limit" in params:
-        params['limit'] = 0
+    params = module.params.get('params')
+    expression = module.params.get('expression')
 
     try:
-        c, public_cloud_regions = api.admin.publiccloudregions.get(
-            headers={'Accept': 'application/vnd.abiquo.publiccloudregions+json'},
-            params=params
-        )
-        common.check_response(200, c, public_cloud_regions)
+        public_cloud_regions = pcr.list(module)
     except Exception as ex:
         module.fail_json(msg=ex.message)
 
@@ -121,29 +113,17 @@ def core(module):
         pcrs = filter(eval(expression), public_cloud_regions)
         module.exit_json(pcrs=map(lambda x: x.json, pcrs))
     else:
-        module.exit_json(pcrs=public_cloud_regions.collection)
+        module.exit_json(pcrs=public_cloud_regions)
 
 def main():
-    module = AnsibleModule(
-        argument_spec=dict(
-            api_url=dict(default=None, required=True),
-            verify=dict(default=True, required=False, type='bool'),
-            api_user=dict(default=None, required=False),
-            api_pass=dict(default=None, required=False, no_log=True),
-            app_key=dict(default=None, required=False),
-            app_secret=dict(default=None, required=False),
-            token=dict(default=None, required=False, no_log=True),
-            token_secret=dict(default=None, required=False, no_log=True),
-            params=dict(default=None, required=False, type='dict'),
-            expression=dict(default=None, required=False)
-        ),
+    arg_spec = abiquo_argument_spec()
+    arg_spec.update(
+        params=dict(default=None, required=False, type='dict'),
+        expression=dict(default=None, required=False)
     )
-
-    if module.params['api_user'] is None and module.params['app_key'] is None:
-        module.fail_json(msg="either basic auth or OAuth credentials are required")
-
-    if not 'verify' in module.params:
-        module.params['verify'] = True
+    module = AnsibleModule(
+        argument_spec=arg_spec
+    )
 
     try:
         core(module)
