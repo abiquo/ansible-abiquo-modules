@@ -38,17 +38,17 @@ class AbiquoCommon(object):
     def __init__(self, ansible_module):
         if os.environ.get('ABIQUO_API_URL') is not None:
             ansible_module.params['api_url'] = os.environ.get('ABIQUO_API_URL')
-        if os.environ.get('ABIQUO_API_USERNAME') is not None:
+        if os.environ.get('ABIQUO_API_USERNAME') is not None and os.environ.get('ABIQUO_API_USERNAME') != "":
             ansible_module.params['api_user'] = os.environ.get('ABIQUO_API_USERNAME')
-        if os.environ.get('ABIQUO_API_PASSWORD') is not None:
+        if os.environ.get('ABIQUO_API_PASSWORD') is not None and os.environ.get('ABIQUO_API_PASSWORD') != "":
             ansible_module.params['api_pass'] = os.environ.get('ABIQUO_API_PASSWORD')
-        if os.environ.get('ABIQUO_API_APP_KEY') is not None:
+        if os.environ.get('ABIQUO_API_APP_KEY') is not None and os.environ.get('ABIQUO_API_APP_KEY') != "":
             ansible_module.params['app_key'] = os.environ.get('ABIQUO_API_APP_KEY')
-        if os.environ.get('ABIQUO_API_APP_SECRET') is not None:
+        if os.environ.get('ABIQUO_API_APP_SECRET') is not None and os.environ.get('ABIQUO_API_APP_SECRET') != "":
             ansible_module.params['app_secret'] = os.environ.get('ABIQUO_API_APP_SECRET')
-        if os.environ.get('ABIQUO_API_TOKEN') is not None:
+        if os.environ.get('ABIQUO_API_TOKEN') is not None and os.environ.get('ABIQUO_API_TOKEN') != "":
             ansible_module.params['token'] = os.environ.get('ABIQUO_API_TOKEN')
-        if os.environ.get('ABIQUO_API_TOKEN_SECRET') is not None:
+        if os.environ.get('ABIQUO_API_TOKEN_SECRET') is not None and os.environ.get('ABIQUO_API_TOKEN_SECRET') != "":
             ansible_module.params['token_secret'] = os.environ.get('ABIQUO_API_TOKEN_SECRET')
 
         if ansible_module.params.get('api_url') is None:
