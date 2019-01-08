@@ -117,8 +117,7 @@ class AbiquoCommon(object):
         for i in range(attempts):
             task_link = task._extract_link('self')
             task_link['type'] = "application/vnd.abiquo.task+json"
-            # code, task = task.refresh(params=None, headers={'accept':'application/vnd.abiquo.task+json'})
-            # check_response(200, code, task)
+
             task = self.get_dto_from_link(task_link)
 
             if task.state.startswith('FINISHED'):

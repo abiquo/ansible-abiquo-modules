@@ -204,7 +204,6 @@ def wait_vm_def_sync(vm, module):
     attempts = module.params.get('max_attempts')
     delay = module.params.get('retry_delay')
 
-
     for i in range(attempts):
         code, vm = vm.refresh()
 

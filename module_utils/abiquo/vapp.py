@@ -56,9 +56,19 @@ def undeploy_vapp(vapp, module):
     check_response(202, code, undeploy_task)
 
     # Wait for the vApp to unlock
-    task = common.track_task(undeploy_task, attempts, delay)
-
-    if task.state != "FINISHED_SUCCESSFULLY":
-        raise Exception("Undeploy failed on vApp '%s'. Check events." % vapp.name)
+    vapp = wait_vapp_state(vapp, module)
 
     return vapp
+
+def wait_vapp_state(vapp, module):
+    attempts = module.params.get('max_attempts')
+    delay = module.params.get('retry_delay')
+
+    for i in range(attempts):
+        code, vapp = vapp.refresh()
+
+        if vapp.state != 'LOCKED':
+            return vapp
+        else:
+            time.sleep(delay)
+    raise ValueError('Exceeded %s attempts waiting for vApp %s to become %s.' % (attempts, vapp.name, state))
