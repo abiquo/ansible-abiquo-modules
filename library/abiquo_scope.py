@@ -121,6 +121,7 @@ from ansible.module_utils._text import to_native
 
 from ansible.module_utils.abiquo.common import AbiquoCommon
 from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo import scope as common_scope
 
 def update_scope(scope, module, api):
     try:
@@ -131,7 +132,7 @@ def update_scope(scope, module, api):
 
     for k, v in module.params.items():
         scope_json[k] = v
-    scope_json["scopeEntities"] = common.buildScopeEntities(module.params['scopeEntities'])
+    scope_json["scopeEntities"] = common_scope.build_scope_entities(module)
 
     if module.params['scopeParent'] is not None:
         parent_link = common.getLink(module.params['scopeParent'], 'edit')
@@ -189,7 +190,7 @@ def core(module):
             "automaticAddDatacenter": automaticAddDatacenter,
             "automaticAddEnterprise": automaticAddEnterprise
         }
-        scope_json["scopeEntities"] = common.buildScopeEntities(scopeEntities)
+        scope_json["scopeEntities"] = common_scope.build_scope_entities(module)
 
         if module.params['scopeParent'] is not None:
             parent_link = common.getLink(module.params['scopeParent'], 'edit')
