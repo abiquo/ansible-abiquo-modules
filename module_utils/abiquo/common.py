@@ -50,6 +50,8 @@ class AbiquoCommon(object):
             ansible_module.params['token'] = os.environ.get('ABIQUO_API_TOKEN')
         if os.environ.get('ABIQUO_API_TOKEN_SECRET') is not None and os.environ.get('ABIQUO_API_TOKEN_SECRET') != "":
             ansible_module.params['token_secret'] = os.environ.get('ABIQUO_API_TOKEN_SECRET')
+        if os.environ.get('ABIQUO_API_INSECURE') is not None:
+            ansible_module.params['verify'] = False
 
         if ansible_module.params.get('api_url') is None:
             raise ValueError('Abiquo API URL is missing!!')
