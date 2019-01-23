@@ -11,10 +11,10 @@ ANSIBLE_METADATA = {'metadata_version': '0.1',
 
 DOCUMENTATION = '''
 ---
-module: abiquo_public_cloud_region_facts
-short_description: Gather facts about public cloud regions in an Abiquo cloud platform
+module: abiquo_scope_facts
+short_description: Gather facts about currencies in an Abiquo cloud platform
 description:
-    - Gather facts about public cloud regions in an Abiquo cloud platform
+    - Gather facts about currencies in an Abiquo cloud platform
 version_added: "2.4"
 author: "Marc Cirauqui (@chirauki)"
 requirements:
@@ -25,7 +25,7 @@ options:
         description:
           - Define the Abiquo API endpoint URL
         required: True
-    ssl_verify:
+    verify:
         description:
           - Whether or not to verify SSL certificates.
         required: False
@@ -62,7 +62,7 @@ options:
         default: null
     params:
         description:
-          - Query params for the list public cloud regions API call
+          - Query params for the list currencies API call
         required: False
         default: null
     expression:
@@ -74,20 +74,11 @@ options:
 
 EXAMPLES = '''
 
-- name: Lookup pcr
-  abiquo_public_cloud_regions_facts:
+- name: Gather currencies
+  abiquo_currency_facts:
     api_url: http://localhost:8009/api
     api_user: admin
     api_pass: xabiquo
-    params:
-        has: "Somename"
-
-- name: Lookup AWS PCR
-  abiquo_public_cloud_regions_facts:
-    api_url: http://localhost:8009/api
-    api_user: admin
-    api_pass: xabiquo
-    expression: "AMAZON in map(lambda x: x._extract_link('hypervisortype')['title'] , public_cloud_regions)"
 
 '''
 
@@ -98,25 +89,37 @@ from ansible.module_utils._text import to_native
 
 from ansible.module_utils.abiquo.common import AbiquoCommon
 from ansible.module_utils.abiquo.common import abiquo_argument_spec
-from ansible.module_utils.abiquo import pcr as pcr_module
 
 def core(module):
     params = module.params.get('params')
     expression = module.params.get('expression')
 
     try:
-        public_cloud_regions = pcr_module.list(module)
+        common = AbiquoCommon(module)
+    except ValueError as ex:
+        module.fail_json(msg=ex.message)
+    api = common.client
+
+    try:
+        c, currencies = api.config.currencies.get(
+            headers={'Accept': 'application/vnd.abiquo.currencies+json'},
+            params=params
+        )
+        common.check_response(200, c, currencies)
     except Exception as ex:
         module.fail_json(msg=ex.message)
 
-    for pcr in public_cloud_regions:
-        pcr.__setattr__('pcr_link', pcr._extract_link('edit'))
+    all_currencies = []
+    for currency in currencies:
+        j = currency.json
+        j['currency_link'] = currency._extract_link('edit')
+        all_currencies.append(j)
 
     if expression is not None:
-        pcrs = filter(eval(expression), public_cloud_regions)
-        module.exit_json(pcrs=map(lambda x: x.json, pcrs))
+        r = filter(eval(expression), all_currencies)
+        module.exit_json(currencies=r)
     else:
-        module.exit_json(pcrs=public_cloud_regions)
+        module.exit_json(currencies=all_currencies)
 
 def main():
     arg_spec = abiquo_argument_spec()
@@ -131,7 +134,7 @@ def main():
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_public_cloud_regions_facts: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(msg='Unanticipated error running abiquo_currency_facts: %s' % to_native(e), exception=traceback.format_exc())
 
 
 if __name__ == '__main__':

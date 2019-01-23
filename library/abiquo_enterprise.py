@@ -201,6 +201,18 @@ def update_enterprise(enterprise, module, api):
         
         enterprise.links.append(scope_lnk)
 
+    if module.params['pricingtemplate'] is not None:
+        pricing_template_lnk = module.params.get('pricingtemplate')
+        if pricing_template_lnk is not None:
+            pricing_template_lnk['rel'] = 'pricingtemplate'
+
+        if enterprise._has_link("pricingtemplate"):
+            for link in enterprise.links:
+                if link['rel'] == "pricingtemplate":
+                    enterprise.links.remove(link)
+        
+        enterprise.links.append(pricing_template_lnk)
+
     try:
         c, ent = enterprise.put()
         common.check_response(200, c, ent)
@@ -325,6 +337,7 @@ def main():
         reseller=dict(default=False, required=False, type='bool'),
         keyNode=dict(default=False, required=False, type='bool'),
         scope=dict(default=None, required=False, type='dict'),
+        pricingtemplate=dict(default=None, required=False, type='dict'),
         state=dict(default='present', choices=['present', 'absent']),
     )
     module = AnsibleModule(
