@@ -180,46 +180,6 @@ from ansible.module_utils._text import to_native
 from ansible.module_utils.abiquo.common import AbiquoCommon
 from ansible.module_utils.abiquo.common import abiquo_argument_spec
 
-def update_enterprise(enterprise, module, api):
-    try:
-        common = AbiquoCommon(module)
-    except ValueError as ex:
-        module.fail_json(msg=ex.message)
-
-    for k, v in module.params.items():
-        enterprise.__setattr__(k, v)
-
-    if module.params['scope'] is not None:
-        scope_lnk = common.getLink(module.params['scope'], 'edit')
-        if scope_lnk is not None:
-            scope_lnk['rel'] = 'scope'
-
-        if enterprise._has_link("scope"):
-            for link in enterprise.links:
-                if link['rel'] == "scope":
-                    enterprise.links.remove(link)
-        
-        enterprise.links.append(scope_lnk)
-
-    if module.params['pricingtemplate'] is not None:
-        pricing_template_lnk = module.params.get('pricingtemplate')
-        if pricing_template_lnk is not None:
-            pricing_template_lnk['rel'] = 'pricingtemplate'
-
-        if enterprise._has_link("pricingtemplate"):
-            for link in enterprise.links:
-                if link['rel'] == "pricingtemplate":
-                    enterprise.links.remove(link)
-        
-        enterprise.links.append(pricing_template_lnk)
-
-    try:
-        c, ent = enterprise.put()
-        common.check_response(200, c, ent)
-        return ent
-    except Exception as ex:
-        module.fail_json(rc=c, msg=ex.message)
-
 def core(module):
     vmsSoft = module.params['vmsSoft']
     vmsHard = module.params['vmsHard']
@@ -244,7 +204,6 @@ def core(module):
     twoFactorAuthenticationMandatory = module.params['twoFactorAuthenticationMandatory']
     reseller = module.params['reseller']
     keyNode = module.params['keyNode']
-    scope = module.params['scope']
 
     state = module.params['state']
 
@@ -263,14 +222,21 @@ def core(module):
     for ent in enterprises:
         if ent.name == name:
             if state == 'present':
-                ent = update_enterprise(ent, module, api)
-                module.exit_json(changed=False, enterprise=ent.json)
+                ent_json = ent.json
+                new_ent_json = common.build_json(module)
+                if common.changes_required(ent_json, new_ent_json):
+                    enterprise = common.update_dto(ent, module)
+                    enterprise_link = enterprise._extract_link('edit')
+                    module.exit_json(changed=True, enterprise=enterprise.json, enterprise_link=enterprise_link)
+                else:
+                    enterprise_link = ent._extract_link('edit')
+                    module.exit_json(changed=False, enterprise=ent.json, enterprise_link=enterprise_link)
             else:
-                c, entresp = ent.delete()
+                code, entresp = ent.delete()
                 try:
-                    common.check_response(204, c, entresp)
+                    common.check_response(204, code, entresp)
                 except Exception as ex:
-                    module.fail_json(rc=c, msg=ex.message)
+                    module.fail_json(msg=ex.message)
                 module.exit_json(msg='Enterprise "%s" deleted' % ent.name, changed=True)
 
     if state == 'absent':
@@ -314,30 +280,28 @@ def core(module):
 def main():
     arg_spec = abiquo_argument_spec()
     arg_spec.update(
-        vmsSoft=dict(default=0, required=False),
-        vmsHard=dict(default=0, required=False),
-        vlansSoft=dict(default=0, required=False),
-        vlansHard=dict(default=0, required=False),
-        publicIpsSoft=dict(default=0, required=False),
-        publicIpsHard=dict(default=0, required=False),
-        ramSoft=dict(default=0, required=False),
-        ramHard=dict(default=0, required=False),
-        cpuSoft=dict(default=0, required=False),
-        cpuHard=dict(default=0, required=False),
-        diskSoftLimitInMb=dict(default=0, required=False),
-        diskHardLimitInMb=dict(default=0, required=False),
-        storageSoftInMb=dict(default=0, required=False),
-        storageHardInMb=dict(default=0, required=False),
-        repositorySoftInMb=dict(default=0, required=False),
-        repositoryHardInMb=dict(default=0, required=False),
+        vmsSoft=dict(default=0, required=False, type=int),
+        vmsHard=dict(default=0, required=False, type=int),
+        vlansSoft=dict(default=0, required=False, type=int),
+        vlansHard=dict(default=0, required=False, type=int),
+        publicIpsSoft=dict(default=0, required=False, type=int),
+        publicIpsHard=dict(default=0, required=False, type=int),
+        ramSoft=dict(default=0, required=False, type=int),
+        ramHard=dict(default=0, required=False, type=int),
+        cpuSoft=dict(default=0, required=False, type=int),
+        cpuHard=dict(default=0, required=False, type=int),
+        diskSoftLimitInMb=dict(default=0, required=False, type=int),
+        diskHardLimitInMb=dict(default=0, required=False, type=int),
+        storageSoftInMb=dict(default=0, required=False, type=int),
+        storageHardInMb=dict(default=0, required=False, type=int),
+        repositorySoftInMb=dict(default=0, required=False, type=int),
+        repositoryHardInMb=dict(default=0, required=False, type=int),
         name=dict(default=None, required=True),
         isReservationRestricted=dict(default=False, required=False, type='bool'),
         workflow=dict(default=False, required=False, type='bool'),
         twoFactorAuthenticationMandatory=dict(default=False, required=False, type='bool'),
         reseller=dict(default=False, required=False, type='bool'),
         keyNode=dict(default=False, required=False, type='bool'),
-        scope=dict(default=None, required=False, type='dict'),
-        pricingtemplate=dict(default=None, required=False, type='dict'),
         state=dict(default='present', choices=['present', 'absent']),
     )
     module = AnsibleModule(

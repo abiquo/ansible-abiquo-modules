@@ -173,7 +173,8 @@ def core(module):
         if scope.name == name:
             if state == 'present':
                 scope = update_scope(scope, module, api)
-                module.exit_json(changed=True, scope=scope.json)
+                scope_link = scope._extract_link('edit')
+                module.exit_json(changed=True, scope=scope.json, scope_link=scope_link)
             else:
                 c, scoperesp = scope.delete()
                 try:
@@ -205,7 +206,8 @@ def core(module):
             common.check_response(201, c, scope)
         except Exception as ex:
             module.fail_json(rc=c, msg=ex.message)
-        module.exit_json(changed=True, scope=scope.json)
+        scope_link = scope._extract_link('edit')
+        module.exit_json(changed=True, scope=scope.json, scope_link=scope_link)
 
 def main():
     arg_spec = abiquo_argument_spec()
