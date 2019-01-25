@@ -45,8 +45,6 @@ class AbiquoCommon(object):
         app_secret = ansible_module.params.get('app_secret')
         token = ansible_module.params.get('token')
         token_secret = ansible_module.params.get('token_secret')
-        max_attempts = ansible_module.params.get('max_attempts')
-        retry_delay = ansible_module.params.get('retry_delay')
 
         # API URL
         if not api_url:

@@ -38,8 +38,8 @@ def delete_vapp(vapp, module):
 
 def undeploy_vapp(vapp, module):
     common = AbiquoCommon(module)
-    attempts = module.params.get('max_attempts')
-    delay = module.params.get('retry_delay')
+    attempts = module.params.get('abiquo_max_attempts')
+    delay = module.params.get('abiquo_retry_delay')
     force = module.params.get('force')
 
     request_dict = {
@@ -61,8 +61,8 @@ def undeploy_vapp(vapp, module):
     return vapp
 
 def wait_vapp_state(vapp, module):
-    attempts = module.params.get('max_attempts')
-    delay = module.params.get('retry_delay')
+    attempts = module.params.get('abiquo_max_attempts')
+    delay = module.params.get('abiquo_retry_delay')
 
     for i in range(attempts):
         code, vapp = vapp.refresh()

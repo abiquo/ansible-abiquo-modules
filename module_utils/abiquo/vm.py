@@ -79,8 +79,8 @@ def create_vm(module):
 
 def deploy_vm(vm, module):
     common = AbiquoCommon(module)
-    attempts = module.params.get('max_attempts')
-    delay = module.params.get('retry_delay')
+    attempts = module.params.get('abiquo_max_attempts')
+    delay = module.params.get('abiquo_retry_delay')
     
     code, deploy_task = vm.follow('deploy').post()
     check_response(202, code, deploy_task)
@@ -140,8 +140,8 @@ def validate_vm_config(module):
 
 def delete_vm(vm, module):
     common = AbiquoCommon(module)
-    attempts = module.params.get('max_attempts')
-    delay = module.params.get('retry_delay')
+    attempts = module.params.get('abiquo_max_attempts')
+    delay = module.params.get('abiquo_retry_delay')
     
     code, delete_task = vm.delete()
     check_response(202, code, delete_task)
@@ -159,8 +159,8 @@ def delete_vm(vm, module):
 
 def apply_vm_state(vm, module):
     common = AbiquoCommon(module)
-    attempts = module.params.get('max_attempts')
-    delay = module.params.get('retry_delay')
+    attempts = module.params.get('abiquo_max_attempts')
+    delay = module.params.get('abiquo_retry_delay')
     state = module.params.get('state')
     
     state_dto = {}
@@ -186,8 +186,8 @@ def apply_vm_state(vm, module):
 
 def reset_vm(vm, module):
     common = AbiquoCommon(module)
-    attempts = module.params.get('max_attempts')
-    delay = module.params.get('retry_delay')
+    attempts = module.params.get('abiquo_max_attempts')
+    delay = module.params.get('abiquo_retry_delay')
     
     code, reset_task = vm.follow('reset').post()
     check_response(202, code, reset_task)
@@ -201,8 +201,8 @@ def reset_vm(vm, module):
     return vm
 
 def wait_vm_def_sync(vm, module):
-    attempts = module.params.get('max_attempts')
-    delay = module.params.get('retry_delay')
+    attempts = module.params.get('abiquo_max_attempts')
+    delay = module.params.get('abiquo_retry_delay')
 
     for i in range(attempts):
         code, vm = vm.refresh()
