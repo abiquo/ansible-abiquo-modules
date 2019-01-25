@@ -37,14 +37,14 @@ class AbiquoCommon(object):
     ]
 
     def __init__(self, ansible_module):
-        api_url = ansible_module.params.get('api_url')
-        verify = ansible_module.params.get('verify')
-        api_user = ansible_module.params.get('api_user')
-        api_pass = ansible_module.params.get('api_pass')
-        app_key = ansible_module.params.get('app_key')
-        app_secret = ansible_module.params.get('app_secret')
-        token = ansible_module.params.get('token')
-        token_secret = ansible_module.params.get('token_secret')
+        api_url = ansible_module.params.get('abiquo_api_url')
+        verify = ansible_module.params.get('abiquo_verify')
+        api_user = ansible_module.params.get('abiquo_api_user')
+        api_pass = ansible_module.params.get('abiquo_api_pass')
+        app_key = ansible_module.params.get('abiquo_app_key')
+        app_secret = ansible_module.params.get('abiquo_app_secret')
+        token = ansible_module.params.get('abiquo_token')
+        token_secret = ansible_module.params.get('abiquo_token_secret')
 
         # API URL
         if not api_url:
