@@ -77,6 +77,22 @@ def create_vm(module):
 
     return vm
 
+def undeploy_vm(vm, module):
+    common = AbiquoCommon(module)
+    attempts = module.params.get('abiquo_max_attempts')
+    delay = module.params.get('abiquo_retry_delay')
+    
+    code, undeploy_task = vm.follow('undeploy').post()
+    check_response(202, code, undeploy_task)
+
+    # Wait for the VM to unlock
+    task = common.track_task(undeploy_task, attempts, delay)
+
+    if task.state != "FINISHED_SUCCESSFULLY":
+        raise Exception("Undeploy failed on VM '%s' (%s). Check events." % (vm.label, vm.name))
+
+    return vm
+
 def deploy_vm(vm, module):
     common = AbiquoCommon(module)
     attempts = module.params.get('abiquo_max_attempts')

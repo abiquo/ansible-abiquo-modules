@@ -161,7 +161,7 @@ options:
         description:
           - State of the datacenter
         required: True
-        choices: ["present", "absent", "on", "off", "reset", "shutdown"]
+        choices: ["present", "absent", "deploy", "undeploy", "on", "off", "reset", "shutdown"]
         default: "present"
 '''
 
@@ -231,9 +231,7 @@ def vm_present(module):
             module.fail_json(msg=validates)
 
         try:
-            vm = virtualmachine.create_and_deploy_vm(module)
-            if module.params.get('wait_for_first_sync'):
-                vm = virtualmachine.wait_vm_def_sync(vm, module)
+            vm = virtualmachine.create_vm(module)
         except ValueError as exv:
             module.fail_json(msg=exv.message)
         except Exception as ex:
@@ -244,6 +242,47 @@ def vm_present(module):
     else:
         vm_link = vm._extract_link('edit')
         module.exit_json(msg='VM "%s" already exists' % vm.label, changed=False, vm=vm.json, vm_link=vm_link)
+
+def vm_deploy(module):
+    vm, vapp = lookup_vm_vapp(module)
+
+    if vm is None:
+        module.exit_json(msg='VM "%s" does not exist' % vm.label, changed=False)
+    else:
+        if vm.state != 'NOT_ALLOCATED':
+            module.exit_json(msg='VM "%s" state "%s" does not allow deploy' % (vm.label, vm.state), changed=False)
+        else:
+            try:
+                vm = virtualmachine.deploy_vm(vm, module)
+                if module.params.get('wait_for_first_sync'):
+                    vm = virtualmachine.wait_vm_def_sync(vm, module)
+            except ValueError as exv:
+                module.fail_json(msg=exv.message)
+            except Exception as ex:
+                module.fail_json(msg=ex.message)
+
+            vm_link = vm._extract_link('edit')
+            module.exit_json(msg='VM "%s" has been deployed' % vm.label, changed=True, vm=vm.json, vm_link=vm_link)
+
+def vm_undeploy(module):
+    vm, vapp = lookup_vm_vapp(module)
+
+    if vm is None:
+        module.exit_json(msg='VM "%s" does not exist' % vm.label, changed=False)
+    else:
+        if vm.state == 'NOT_ALLOCATED':
+            module.exit_json(msg='VM "%s" is already undeployed.' % vm.label, changed=False)
+        else:
+            try:
+                vm = virtualmachine.undeploy_vm(vm, module)
+            except ValueError as exv:
+                module.fail_json(msg=exv.message)
+            except Exception as ex:
+                module.fail_json(msg=ex.message)
+
+            vm_link = vm._extract_link('edit')
+            module.exit_json(msg='VM "%s" has been undeployed' % vm.label, changed=True, vm=vm.json, vm_link=vm_link)
+
 
 def vm_absent(module):
     vm, vapp = lookup_vm_vapp(module)
@@ -306,7 +345,7 @@ def main():
         template=dict(default=None, required=True, type='dict'),
         vapp=dict(default=None, required=True, type='dict'),
         wait_for_first_sync=dict(default=False, required=False, type='bool'),
-        state=dict(default='present', choices=['present', 'absent', 'on', 'off', 'reset', 'shutdown']),
+        state=dict(default='present', choices=['present', 'absent', 'deploy', 'undeploy', 'on', 'off', 'reset', 'shutdown']),
     )
 
     module = AnsibleModule(
