@@ -90,4 +90,4 @@ def wait_vapp_state(vapp, module):
             return vapp
         else:
             time.sleep(delay)
-    raise ValueError('Exceeded %s attempts waiting for vApp %s to become %s.' % (attempts, vapp.name, state))
+    raise ValueError('Exceeded %s attempts waiting for vApp %s to become %s.' % (attempts, vapp.name, module.params.get('state')))
