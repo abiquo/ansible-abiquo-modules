@@ -36,6 +36,25 @@ def delete_vapp(vapp, module):
     code, resp = vapp.delete()
     check_response(204, code, resp)
 
+def deploy_vapp(vapp, module):
+    common = AbiquoCommon(module)
+    attempts = module.params.get('abiquo_max_attempts')
+    delay = module.params.get('abiquo_retry_delay')
+    
+    request_dict = {}
+
+    code, deploy_task = vapp.follow('deploy').post(
+        headers={'accept': 'application/vnd.abiquo.acceptedrequest+json',
+                'content-Type': 'application/vnd.abiquo.virtualmachinetask+json'},
+        data=json.dumps(request_dict)
+    )
+    check_response(202, code, deploy_task)
+
+    # Wait for the vApp to unlock
+    vapp = wait_vapp_state(vapp, module)
+
+    return vapp
+
 def undeploy_vapp(vapp, module):
     common = AbiquoCommon(module)
     attempts = module.params.get('abiquo_max_attempts')

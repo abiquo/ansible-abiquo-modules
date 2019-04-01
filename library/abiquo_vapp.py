@@ -88,7 +88,7 @@ options:
         description:
           - State of the vApp
         required: True
-        choices: ["present", "absent", "undeploy"]
+        choices: ["present", "absent", "undeploy", "deploy"]
         default: "present"
 '''
 
@@ -169,6 +169,25 @@ def vapp_absent(module):
             module.fail_json(msg=ex.message)
         module.exit_json(msg='vApp "%s" deleted' % vapp.name, changed=True)
 
+def vapp_deploy(module):
+    vapp = lookup_vapp(module)
+
+    if vapp is None:
+        module.exit_json(msg='vApp "%s" does not exist' % module.params.get('name'), changed=False)
+    else:
+        vapp_link = vapp._extract_link('edit')
+
+        if vapp.state == 'DEPLOYED':
+            module.exit_json(msg='vApp "%s" is already deployed' % vapp.name, changed=False, vapp=vapp.json, vapp_link=vapp_link)
+        else:
+            try:
+                vapp = virtualappliance.deploy_vapp(vapp, module)
+                if state != 'DEPLOYED':
+                    module.fail_json(msg='vApp "%s" is not in the desired state', vapp=vapp.json, vapp_link=vapp_link)
+            except Exception as ex:
+                module.fail_json(msg=ex.message)
+            module.exit_json(msg='vApp "%s" has been deployed' % vapp.name, changed=True, vapp=vapp.json, vapp_link=vapp_link)
+
 def vapp_undeploy(module):
     vapp = lookup_vapp(module)
 
@@ -182,6 +201,8 @@ def vapp_undeploy(module):
         else:
             try:
                 vapp = virtualappliance.undeploy_vapp(vapp, module)
+                if state not in [ 'NOT_ALLOCATED', 'NOT_DEPLOYED' ]:
+                    module.fail_json(msg='vApp "%s" is not in the desired state', vapp=vapp.json, vapp_link=vapp_link)
             except Exception as ex:
                 module.fail_json(msg=ex.message)
             module.exit_json(msg='vApp "%s" has been undeployed' % vapp.name, changed=True, vapp=vapp.json, vapp_link=vapp_link)
@@ -193,6 +214,8 @@ def core(module):
         vapp_present(module)
     elif state == 'absent':
         vapp_absent(module)
+    elif state == 'deploy':
+        vapp_deploy(module)
     elif state == 'undeploy':
         vapp_undeploy(module)
 
@@ -205,7 +228,7 @@ def main():
         description=dict(default=None, required=False),
         restricted=dict(default=False, required=False, type='bool'),
         force=dict(default=False, required=False, type='bool'),
-        state=dict(default='present', choices=['present', 'absent', 'undeploy']),
+        state=dict(default='present', choices=['present', 'absent', 'undeploy', 'deploy']),
     )
     module = AnsibleModule(
         argument_spec=arg_spec
