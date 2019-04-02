@@ -321,6 +321,10 @@ def core(module):
         vm_absent(module)
     elif state == 'reset':
         vm_reset(module)
+    elif state == 'deploy':
+        vm_deploy(module)
+    elif state == 'undeploy':
+        vm_undeploy(module)
     else:
         vm_state(module, state)
 
