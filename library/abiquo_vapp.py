@@ -182,8 +182,8 @@ def vapp_deploy(module):
         else:
             try:
                 vapp = virtualappliance.deploy_vapp(vapp, module)
-                if module.params.get('state') != 'DEPLOYED':
-                    module.fail_json(msg='vApp "%s" is not in the desired state', vapp=vapp.json, vapp_link=vapp_link)
+                if vapp.state != 'DEPLOYED':
+                    module.fail_json(msg='vApp "%s" is not in the desired state' % vapp.name, vapp=vapp.json, vapp_link=vapp_link)
             except Exception as ex:
                 module.fail_json(msg=ex.message)
             module.exit_json(msg='vApp "%s" has been deployed' % vapp.name, changed=True, vapp=vapp.json, vapp_link=vapp_link)
@@ -196,13 +196,13 @@ def vapp_undeploy(module):
     else:
         vapp_link = vapp._extract_link('edit')
 
-        if vapp.state in [ 'NOT_ALLOCATED', 'NOT_DEPLOYED' ]:
+        if vapp.state == 'NOT_DEPLOYED':
             module.exit_json(msg='vApp "%s" is already undeployed' % vapp.name, changed=False, vapp=vapp.json, vapp_link=vapp_link)
         else:
             try:
                 vapp = virtualappliance.undeploy_vapp(vapp, module)
-                if module.params.get('state') != 'NOT_DEPLOYED':
-                    module.fail_json(msg='vApp "%s" is not in the desired state', vapp=vapp.json, vapp_link=vapp_link)
+                if vapp.state != 'NOT_DEPLOYED':
+                    module.fail_json(msg='vApp "%s" is not in the desired state' % vapp.name, vapp=vapp.json, vapp_link=vapp_link)
             except Exception as ex:
                 module.fail_json(msg=ex.message)
             module.exit_json(msg='vApp "%s" has been undeployed' % vapp.name, changed=True, vapp=vapp.json, vapp_link=vapp_link)
