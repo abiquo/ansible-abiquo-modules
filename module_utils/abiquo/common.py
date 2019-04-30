@@ -24,6 +24,14 @@ def abiquo_argument_spec():
         links               = dict(default=None, required=False, type=dict)
     )
 
+def abiquo_updatable_arguments(args):
+    updatable_args = []
+    for arg in args:
+        if 'abiquo_updatable' in arg and arg['abiquo_updatable']:
+            updatable_args.append(arg)
+
+    return updatable_args
+
 class AbiquoCommon(object):
     NETWORK_SYS_PROPS = [
         "client.network.numberIpAdressesPerPage",
@@ -132,6 +140,24 @@ class AbiquoCommon(object):
         else:
             return links[0]
 
+    def track_async_task(self, async_task, attempts, delay):
+        for i in range(attempts):
+            code, async_task = async_task.refresh()
+            check_response(200, code, async_task)
+
+            if async_task.finished:
+                return async_task
+            else:
+                time.sleep(delay)
+        raise ValueError('Exceeded %s attempts tracking async task of type %s for %s' % (attempts, task.type, task.ownerId))
+
+    def async_task_status_ok(self, async_task):
+        jobs = async_task.jobs
+        for job in jobs['collection']:
+            if job['status'] not in ['FinishedSuccessfully', 'Completed']:
+                return False
+        return True
+
     def track_task(self, task, attempts, delay):
         if task._has_link('status'):
             # Not a task, but the accepted request
@@ -148,7 +174,7 @@ class AbiquoCommon(object):
                 return task
             else:
                 time.sleep(delay)
-        raise ValueError('Exceeded %s attempts tracking task of type %s for %s' % (attempts, task.type, task.ownerId))
+        raise ValueError('Exceeded %s attempts tracking async task' % attempts)
 
     def login(self):
         code, user = self.client.login.get(headers={'accept':'application/vnd.abiquo.user+json'})
@@ -217,3 +243,19 @@ class AbiquoCommon(object):
         code, updated_dto = abiquo_dto.put()
         self.check_response(200, code, updated_dto)
         return updated_dto
+
+    def getDefaultNetworkDict(self):
+        net = {}
+        code, props = self.client.config.properties.get(headers={'Accept': 'application/vnd.abiquo.systemproperties+json'})
+        check_response(200, code, props)
+
+        net['name'] = (filter(lambda x: x.name == "client.network.defaultName", props)[0]).value
+        net['address'] = (filter(lambda x: x.name == "client.network.defaultAddress", props)[0]).value
+        net['mask'] = (filter(lambda x: x.name == "client.network.defaultNetmask", props)[0]).value
+        net['gateway'] = (filter(lambda x: x.name == "client.network.defaultGateway", props)[0]).value
+        net['primaryDNS'] = (filter(lambda x: x.name == "client.network.defaultPrimaryDNS", props)[0]).value
+        net['secondaryDNS'] = (filter(lambda x: x.name == "client.network.defaultSecondaryDNS", props)[0]).value
+        net['sufixDNS'] = (filter(lambda x: x.name == "client.network.defaultSufixDNS", props)[0]).value
+        net['type'] = 'INTERNAL'
+
+        return net

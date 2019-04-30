@@ -165,6 +165,7 @@ from ansible.module_utils._text import to_native
 
 from ansible.module_utils.abiquo.common import AbiquoCommon
 from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo import pcr as pcr_module
 
 def core(module):
     name = module.params['name']
@@ -216,14 +217,22 @@ def core(module):
         if enterprise is None:
             enterprise = common.getMyEnterprise()
             enterprise_lnk = common.getLink(enterprise.json, 'edit')
+        else:
+            enterprise_lnk = enterprise
             enterprise_lnk['rel'] = 'enterprise'
+
         if hypervisortype is None:
-            hypervisortype = common.getFirstHtype(location)
+            location = common.getDTO(location)
+            code, hypervisortype = location.follow('hypervisortype').get()
+            try:
+                common.check_response(200, code, hypervisortype)
+            except Exception as ex:
+                module.fail_json(rc=code, msg=ex.message)
             hypervisortype = hypervisortype.name
         if network is None:
             network = common.getDefaultNetworkDict()
 
-        vdc = {
+        vdc_json = {
             "links": [ location_lnk, enterprise_lnk ],
             "name": name,
             "hypervisorType": hypervisortype,
@@ -239,15 +248,35 @@ def core(module):
             "cpuSoft": cpuSoft,
             "cpuHard": cpuHard
         }
-        c, vdc = api.cloud.virtualdatacenters.post(
+        code, vdc = api.cloud.virtualdatacenters.post(
             headers={'Accept': 'application/vnd.abiquo.virtualdatacenter+json',
                     'Content-Type': 'application/vnd.abiquo.virtualdatacenter+json'},
-            data=json.dumps(vdc)
+            data=json.dumps(vdc_json)
         )
         try:
-            common.check_response(201, c, vdc)
+            common.check_response(201, code, vdc)
         except Exception as ex:
-            module.fail_json(rc=c, msg=ex.message)
+            if code == 406: # NARS
+                code, task = api.cloud.virtualdatacenters.post(
+                    headers={'accept': 'application/vnd.abiquo.asynctask+json',
+                            'content-type': 'application/vnd.abiquo.virtualdatacenter+json'},
+                    data=json.dumps(vdc_json)
+                )
+
+                try:
+                    attempts = module.params.get('abiquo_max_attempts')
+                    delay = module.params.get('abiquo_retry_delay')
+    
+                    common.check_response(201, code, task)
+                    task = common.track_async_task(task, attempts, delay)
+                    if not common.async_task_status_ok(task):
+                        raise Exception("Create VDC failed. Check events.")
+                    code, vdc = task.follow('owner').get()
+                    common.check_response(200, code, vdc)
+                except Exception as e:
+                    module.fail_json(rc=code, msg=e.message)
+            else:
+                module.fail_json(rc=code, msg=ex.message)
         module.exit_json(msg='VDC "%s" created' % name, changed=True, vdc=vdc.json)
 
 def main():

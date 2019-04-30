@@ -123,101 +123,64 @@ from ansible.module_utils.abiquo.common import AbiquoCommon
 from ansible.module_utils.abiquo.common import abiquo_argument_spec
 from ansible.module_utils.abiquo import scope as common_scope
 
-def update_scope(scope, module, api):
-    try:
-        common = AbiquoCommon(module)
-    except ValueError as ex:
-        module.fail_json(msg=ex.message)
-    scope_json = scope.json
+def update_scope(module):
+    scope = common_scope.lookup_by_name(module)
 
-    for k, v in module.params.items():
-        scope_json[k] = v
-    scope_json["scopeEntities"] = common_scope.build_scope_entities(module)
+    if scope is not None:
+        try:
+            scope = common_scope.update(module, scope)
+            scope_link = scope._extract_link('edit')
+            module.exit_json(msg="Scope '%s' updated." % scope.name, changed=True, scope=scope.json, scope_link=scope_link)
+        except Exception as e:
+            module.fail_json(msg=e.message)
+    else:
+        module.faile_json(msg="Scope '%s' does not exist." % module.params.get('name'), changed=False)
 
-    if module.params['scopeParent'] is not None:
-        parent_link = common.getLink(module.params['scopeParent'], 'edit')
-        parent_link['rel'] = 'scopeParent'
-        scope_json['links'] = [ parent_link ]
+def create_scope(module):
+    scope = common_scope.lookup_by_name(module)
 
-    try:
-        c, sc = api.admin.scopes.put(
-            id="%s" % scope_json['id'],
-            headers={'accept':'application/vnd.abiquo.scope+json','content-type':'application/vnd.abiquo.scope+json'},
-            data=json.dumps(scope_json)
-        )
-        common.check_response(200, c, sc)
-        return sc
-    except Exception as ex:
-        module.fail_json(msg=ex.message)
+    if scope is None:
+        try:
+            scope = common_scope.create(module)
+        except Exception as e:
+            module.fail_json(msg=e.message)
+        scope_link = scope._extract_link('edit')
+        module.exit_json(msg="Scope '%s' created." % scope.name, changed=True, scope=scope.json, scope_link=scope_link)
+    else:
+        scope_link = scope._extract_link('edit')
+        module.exit_json(msg="Scope '%s' already exists." % scope.name, changed=False, scope=scope.json, scope_link=scope_link)
+
+def delete_scope():
+    scope = common_scope.lookup_by_name(module)
+
+    if scope is not None:
+        try:
+            scope.delete()
+            module.exit_json(msg="Scope '%s' deleted." % module.params.get('name'), changed=True)
+        except Exception as e:
+            module.fail_json(msg=e.message)
+    else:
+        module.exit_json(msg="Scope '%s' does not exist." % module.params.get('name'), changed=False)
 
 def core(module):
-    name = module.params['name']
-    scopeEntities = module.params['scopeEntities']
-    automaticAddDatacenter = module.params['automaticAddDatacenter']
-    automaticAddEnterprise = module.params['automaticAddEnterprise']
-    state = module.params['state']
+    state = module.params.get('state')
 
-    try:
-        common = AbiquoCommon(module)
-    except ValueError as ex:
-        module.fail_json(msg=ex.message)
-    api = common.client
-
-    try:
-        c, scopes = api.admin.scopes.get(headers={'accept':'application/vnd.abiquo.scopes+json'})
-        common.check_response(200, c, scopes)
-    except Exception as ex:
-        module.fail_json(rc=code, msg=ex.message)
-
-    for scope in scopes:
-        if scope.name == name:
-            if state == 'present':
-                scope = update_scope(scope, module, api)
-                scope_link = scope._extract_link('edit')
-                module.exit_json(changed=True, scope=scope.json, scope_link=scope_link)
-            else:
-                c, scoperesp = scope.delete()
-                try:
-                    common.check_response(204, c, scoperesp)
-                except Exception as ex:
-                    module.fail_json(rc=c, msg=ex.message)
-                module.exit_json(msg='Scope "%s" deleted' % scope.name, changed=True)
-
-    if state == 'absent':
-        module.exit_json(changed=False)
+    if state == 'present':
+        create_scope(module)
+    elif state == 'update':
+        update_scope(module)
     else:
-        scope_json = {
-            "name": name,
-            "automaticAddDatacenter": automaticAddDatacenter,
-            "automaticAddEnterprise": automaticAddEnterprise
-        }
-        scope_json["scopeEntities"] = common_scope.build_scope_entities(module)
-
-        if module.params['scopeParent'] is not None:
-            parent_link = common.getLink(module.params['scopeParent'], 'edit')
-            parent_link['rel'] = 'scopeParent'
-            scope_json['links'] = [ parent_link ]
-
-        c, scope = api.admin.scopes.post(
-            headers={'accept':'application/vnd.abiquo.scope+json','content-type':'application/vnd.abiquo.scope+json'},
-            data=json.dumps(scope_json)
-        )
-        try:
-            common.check_response(201, c, scope)
-        except Exception as ex:
-            module.fail_json(rc=c, msg=ex.message)
-        scope_link = scope._extract_link('edit')
-        module.exit_json(changed=True, scope=scope.json, scope_link=scope_link)
+        delete_scope(module)
 
 def main():
     arg_spec = abiquo_argument_spec()
     arg_spec.update(
-        name=dict(default=None, required=True),
+        name=dict(default=None, required=True, abiquo_updatable=True),
         scopeEntities=dict(default=None, required=False, type='list'),
-        automaticAddDatacenter=dict(default=False, required=False, type='bool'),
-        automaticAddEnterprise=dict(default=False, required=False, type='bool'),
+        automaticAddDatacenter=dict(default=False, required=False, type='bool', abiquo_updatable=True),
+        automaticAddEnterprise=dict(default=False, required=False, type='bool', abiquo_updatable=True),
         scopeParent=dict(default=None, required=False, type='dict'),
-        state=dict(default='present', choices=['present', 'absent']),
+        state=dict(default='present', choices=['present', 'absent', 'update']),
     )
     module = AnsibleModule(
         argument_spec=arg_spec

@@ -2,7 +2,9 @@ import json
 
 from common import AbiquoCommon
 from abiquo.client import check_response
-import datacenter
+from ansible.module_utils.abiquo.common import abiquo_updatable_arguments
+
+from ansible.module_utils.abiquo import datacenter
 
 def lookup_result(task):
     code, template = task.follow('result').get()
@@ -60,3 +62,45 @@ def download(module, datacenter_name, remote_repository_url, template_name):
     )
     check_response(202, code, download_task)
     return download_task
+
+def search_by_id(dc_repo, template_id):
+    code, templates = dc_repo.follow('virtualmachinetemplates').get(
+        params={
+            'path': template_id,
+            'source': 'remote'
+        },
+        headers={'accept':'application/vnd.abiquo.virtualmachinetemplates+json'}
+    )
+    check_response(200, code, templates)
+
+    for template in templates:
+        if template.id == template_id:
+            return template
+
+    return None
+
+def import_template(dc_repo, template):
+    code, template = dc_repo.follow('virtualmachinetemplates').post(
+        headers={'accept': 'application/vnd.abiquo.virtualmachinetemplate+json',
+            'content-type': 'application/vnd.abiquo.virtualmachinetemplate+json'},
+        data=json.dumps(template.json)
+    )
+    check_response(201, code, template)
+    return template
+
+def find_by_disk_path(dc_repo, template_id):
+    code, templates = dc_repo.follow('virtualmachinetemplates').get()
+    check_response(200, code, templates)
+
+    for template in templates:
+        code, root_disk = template.follow('disk0').get()
+        check_response(200, code, root_disk)
+
+        if root_disk.path == template_id:
+            return template
+
+    return None
+
+def delete(template):
+    code, delete = template.delete()
+    check_response(204, code, delete)

@@ -11,10 +11,10 @@ ANSIBLE_METADATA = {'metadata_version': '0.1',
 
 DOCUMENTATION = '''
 ---
-module: abiquo_enterprise
-short_description: Manage enterprises (tenants) in an Abiquo cloud platform
+module: abiquo_user
+short_description: Manage users in an Abiquo cloud platform
 description:
-    - Manage enterprises (tenants) in an Abiquo cloud platform
+    - Manage users in an Abiquo cloud platform
 version_added: "2.4"
 author: "Marc Cirauqui (@chirauki)"
 requirements:

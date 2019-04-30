@@ -16,6 +16,21 @@ def list(module):
 
     return all_pcrs
 
+def find_by_link(module, pcr_link):
+    common = AbiquoCommon(module)
+    api = common.client
+
+    code, publiccloudregions = api.admin.publiccloudregions.get(headers={'accept': 'application/vnd.abiquo.publiccloudregions+json'},
+        params={'has': pcr_link['title']})
+    check_response(200, code, publiccloudregions)
+
+    for pcr in publiccloudregions:
+        public_cloud_region_link = filter(lambda x: x['rel'] == 'edit', pcr.links)[0]
+        if public_cloud_region_link['href'] == pcr_link['href']:
+            return pcr
+
+    return None
+
 def lookup_region(module):
     common = AbiquoCommon(module)
     provider = module.params.get('provider')
@@ -57,3 +72,7 @@ def create_pcr(region, module):
     common.check_response(201, c, pcr)
 
     return pcr
+
+def hypervisortype(location):
+    htype_link = location._extract_link('hypervisortype')
+    return htype_link
