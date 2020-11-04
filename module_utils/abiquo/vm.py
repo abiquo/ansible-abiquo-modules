@@ -1,7 +1,7 @@
 import time, json
 
 from abiquo.client import check_response
-from common import AbiquoCommon
+from ansible.module_utils.abiquo.common import AbiquoCommon
 
 def find_vm_in_vdc(vapp, vm_label):
     code, vms = vapp.follow('virtualmachines').get()

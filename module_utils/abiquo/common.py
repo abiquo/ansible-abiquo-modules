@@ -134,7 +134,7 @@ class AbiquoCommon(object):
             return None
 
     def getLink(self, dto_json, rel):
-        links = filter(lambda x: x['rel'] == rel, dto_json['links'])
+        links = list(filter(lambda x: x['rel'] == rel, dto_json['links']))
         if len(links) == 0:
             return None
         else:
