@@ -2,8 +2,16 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: Ansible Project
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
+import json
+import traceback
+from ansible.module_utils.abiquo import vm as virtualmachine
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils._text import to_native
+from ansible.module_utils.basic import AnsibleModule
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
@@ -80,7 +88,7 @@ options:
         required: False
     runlist:
         description:
-          - runlistelements 
+          - runlistelements
         required: False
     state:
         description:
@@ -148,7 +156,7 @@ options:
         description:
           - Link of the vApp where to create the VM
         required: True
-    
+
 
     wait_for_first_sync:
         description:
@@ -190,14 +198,6 @@ EXAMPLES = '''
 
 '''
 
-import traceback, json
-
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
-
-from ansible.module_utils.abiquo.common import AbiquoCommon
-from ansible.module_utils.abiquo.common import abiquo_argument_spec
-from ansible.module_utils.abiquo import vm as virtualmachine
 
 def lookup_vm_vapp(module):
     label = module.params.get('label')
@@ -222,6 +222,7 @@ def lookup_vm_vapp(module):
 
     return vm, vapp
 
+
 def vm_present(module):
     vm, vapp = lookup_vm_vapp(module)
 
@@ -238,19 +239,34 @@ def vm_present(module):
             module.fail_json(msg=ex.message)
 
         vm_link = vm._extract_link('edit')
-        module.exit_json(msg='VM "%s" created' % vm.label, changed=True, vm=vm.json, vm_link=vm_link)
+        module.exit_json(
+            msg='VM "%s" created' %
+            vm.label,
+            changed=True,
+            vm=vm.json,
+            vm_link=vm_link)
     else:
         vm_link = vm._extract_link('edit')
-        module.exit_json(msg='VM "%s" already exists' % vm.label, changed=False, vm=vm.json, vm_link=vm_link)
+        module.exit_json(
+            msg='VM "%s" already exists' %
+            vm.label,
+            changed=False,
+            vm=vm.json,
+            vm_link=vm_link)
+
 
 def vm_deploy(module):
     vm, vapp = lookup_vm_vapp(module)
 
     if vm is None:
-        module.exit_json(msg='VM "%s" does not exist' % vm.label, changed=False)
+        module.exit_json(
+            msg='VM "%s" does not exist' %
+            vm.label, changed=False)
     else:
         if vm.state != 'NOT_ALLOCATED':
-            module.exit_json(msg='VM "%s" state "%s" does not allow deploy' % (vm.label, vm.state), changed=False)
+            module.exit_json(
+                msg='VM "%s" state "%s" does not allow deploy' %
+                (vm.label, vm.state), changed=False)
         else:
             try:
                 vm = virtualmachine.deploy_vm(vm, module)
@@ -262,16 +278,26 @@ def vm_deploy(module):
                 module.fail_json(msg=ex.message)
 
             vm_link = vm._extract_link('edit')
-            module.exit_json(msg='VM "%s" has been deployed' % vm.label, changed=True, vm=vm.json, vm_link=vm_link)
+            module.exit_json(
+                msg='VM "%s" has been deployed' %
+                vm.label,
+                changed=True,
+                vm=vm.json,
+                vm_link=vm_link)
+
 
 def vm_undeploy(module):
     vm, vapp = lookup_vm_vapp(module)
 
     if vm is None:
-        module.exit_json(msg='VM "%s" does not exist' % vm.label, changed=False)
+        module.exit_json(
+            msg='VM "%s" does not exist' %
+            vm.label, changed=False)
     else:
         if vm.state == 'NOT_ALLOCATED':
-            module.exit_json(msg='VM "%s" is already undeployed.' % vm.label, changed=False)
+            module.exit_json(
+                msg='VM "%s" is already undeployed.' %
+                vm.label, changed=False)
         else:
             try:
                 vm = virtualmachine.undeploy_vm(vm, module)
@@ -281,17 +307,25 @@ def vm_undeploy(module):
                 module.fail_json(msg=ex.message)
 
             vm_link = vm._extract_link('edit')
-            module.exit_json(msg='VM "%s" has been undeployed' % vm.label, changed=True, vm=vm.json, vm_link=vm_link)
+            module.exit_json(
+                msg='VM "%s" has been undeployed' %
+                vm.label,
+                changed=True,
+                vm=vm.json,
+                vm_link=vm_link)
 
 
 def vm_absent(module):
     vm, vapp = lookup_vm_vapp(module)
 
     if vm is None:
-        module.exit_json(msg='VM "%s" does not exist' % vm.label, changed=False)
+        module.exit_json(
+            msg='VM "%s" does not exist' %
+            vm.label, changed=False)
     else:
         virtualmachine.delete_vm(vm, module)
         module.exit_json(msg='VM "%s" deleted' % vm.label, changed=True)
+
 
 def vm_state(module):
     vm, vapp = lookup_vm_vapp(module)
@@ -301,7 +335,10 @@ def vm_state(module):
         module.fail_json(msg="Requested VM cannot be found!")
     else:
         virtualmachine.apply_vm_state(vm, module)
-        module.exit_json(msg='State %s applied to VM "%s"' % (state, vm.label), changed=True)
+        module.exit_json(
+            msg='State %s applied to VM "%s"' %
+            (state, vm.label), changed=True)
+
 
 def vm_reset(module):
     vm, vapp = lookup_vm_vapp(module)
@@ -310,7 +347,10 @@ def vm_reset(module):
         module.fail_json(msg="Requested VM cannot be found!")
     else:
         virtualmachine.rese_vm(vm, module)
-        module.exit_json(msg='VM %s reset successfully' % vm.label, changed=True)
+        module.exit_json(
+            msg='VM %s reset successfully' %
+            vm.label, changed=True)
+
 
 def core(module):
     state = module.params['state']
@@ -327,6 +367,7 @@ def core(module):
         vm_undeploy(module)
     else:
         vm_state(module, state)
+
 
 def main():
     arg_spec = abiquo_argument_spec()
@@ -349,7 +390,17 @@ def main():
         template=dict(default=None, required=True, type='dict'),
         vapp=dict(default=None, required=True, type='dict'),
         wait_for_first_sync=dict(default=False, required=False, type='bool'),
-        state=dict(default='present', choices=['present', 'absent', 'deploy', 'undeploy', 'on', 'off', 'reset', 'shutdown']),
+        state=dict(
+            default='present',
+            choices=[
+                'present',
+                'absent',
+                'deploy',
+                'undeploy',
+                'on',
+                'off',
+                'reset',
+                'shutdown']),
     )
 
     module = AnsibleModule(
@@ -359,7 +410,9 @@ def main():
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_vm: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(
+            msg='Unanticipated error running abiquo_vm: %s' %
+            to_native(e), exception=traceback.format_exc())
 
 
 if __name__ == '__main__':

@@ -2,8 +2,16 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: Ansible Project
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
+import json
+import traceback
+from ansible.module_utils.abiquo import pricing_template
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils._text import to_native
+from ansible.module_utils.basic import AnsibleModule
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
@@ -127,14 +135,6 @@ EXAMPLES = '''
 
 '''
 
-import traceback, json
-
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
-
-from ansible.module_utils.abiquo.common import AbiquoCommon
-from ansible.module_utils.abiquo.common import abiquo_argument_spec
-from ansible.module_utils.abiquo import pricing_template
 
 def pricing_template_present(module):
     p_template_name = module.params.get('name')
@@ -143,28 +143,44 @@ def pricing_template_present(module):
     if p_template is not None:
         # TODO UPDATE
         p_template_link = p_template._extract_link('edit')
-        module.exit_json(msg='Pricing template "%s"' % p_template_name, changed=False, pricing_template=p_template.json, pricing_template_link=p_template_link)
+        module.exit_json(
+            msg='Pricing template "%s"' %
+            p_template_name,
+            changed=False,
+            pricing_template=p_template.json,
+            pricing_template_link=p_template_link)
     else:
         # Create
         try:
             p_template = pricing_template.create(module)
             p_template_link = p_template._extract_link('edit')
-            module.exit_json(msg='Pricing template "%s" created' % p_template_name, changed=True, pricing_template=p_template.json, pricing_template_link=p_template_link)
+            module.exit_json(
+                msg='Pricing template "%s" created' %
+                p_template_name,
+                changed=True,
+                pricing_template=p_template.json,
+                pricing_template_link=p_template_link)
         except Exception as ex:
             module.fail_json(msg=ex.message)
+
 
 def pricing_template_absent(module):
     p_template_name = module.params.get('name')
     p_template = pricing_template.find(module)
 
     if p_template is None:
-        module.exit_json(msg='Pricing template "%s" does not exist' % p_template_name, changed=False)
+        module.exit_json(
+            msg='Pricing template "%s" does not exist' %
+            p_template_name, changed=False)
     else:
         try:
             pricing_template.delete(p_template)
-            module.exit_json(msg='Pricing template "%s" deleted' % p_template_name, changed=True)
+            module.exit_json(
+                msg='Pricing template "%s" deleted' %
+                p_template_name, changed=True)
         except Exception as e:
             module.fail_json(msg=ex.message)
+
 
 def core(module):
     state = module.params.get('state')
@@ -174,6 +190,7 @@ def core(module):
     else:
         pricing_template_absent(module)
 
+
 def main():
     arg_spec = abiquo_argument_spec()
     arg_spec.update(
@@ -181,7 +198,11 @@ def main():
         description=dict(default=None, required=False),
         standingChargePeriod=dict(default=0, required=False, type=int),
         showMinimumCharge=dict(default=None, required=False),
-        chargingPeriod=dict(default=2, required=False, type=int), # 2 is for Day
+        chargingPeriod=dict(
+            default=2,
+            required=False,
+            type=int),
+        # 2 is for Day
         minimumChargePeriod=dict(default=0, required=False, type=int),
         showChangesBefore=dict(default=None, required=False),
         minimumCharge=dict(default=0, required=False, type=int),
@@ -197,7 +218,10 @@ def main():
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_pricing_template: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(
+            msg='Unanticipated error running abiquo_pricing_template: %s' %
+            to_native(e), exception=traceback.format_exc())
+
 
 if __name__ == '__main__':
     main()

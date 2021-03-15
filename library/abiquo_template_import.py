@@ -2,8 +2,18 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: Ansible Project
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
+import json
+import traceback
+from ansible.module_utils.abiquo import template as template_module
+from ansible.module_utils.abiquo import pcr as pcr_module
+from ansible.module_utils.abiquo import enterprise as enterprise_module
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils._text import to_native
+from ansible.module_utils.basic import AnsibleModule
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
@@ -70,7 +80,7 @@ options:
         description:
           - Name of the datacenter where the template should be downloaded
         required: True
-    
+
     state:
         description:
           - State of the datacenter
@@ -104,16 +114,6 @@ EXAMPLES = '''
 
 '''
 
-import traceback, json
-
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
-
-from ansible.module_utils.abiquo.common import AbiquoCommon
-from ansible.module_utils.abiquo.common import abiquo_argument_spec
-from ansible.module_utils.abiquo import enterprise as enterprise_module
-from ansible.module_utils.abiquo import pcr as pcr_module
-from ansible.module_utils.abiquo import template as template_module
 
 def lookup_dc_enterprise(module):
     enterprise_link = module.params.get('enterprise')
@@ -124,12 +124,13 @@ def lookup_dc_enterprise(module):
 
     return datacenter, enterprise
 
+
 def delete_template(module):
     datacenter, enterprise = lookup_dc_enterprise(module)
 
     if datacenter is None or enterprise is None:
         module.fail_json(msg="Datacenter or enterprise was not found.")
-    
+
     template_id = module.params.get('template_id')
     try:
         dc_repo = enterprise_module.get_repo_for_dc(enterprise, datacenter)
@@ -138,20 +139,25 @@ def delete_template(module):
         module.fail_json(msg=e.message)
 
     if template is None:
-        module.fail_json(msg="Template ID %s already deleted" % template_id, changed=False)
+        module.fail_json(
+            msg="Template ID %s already deleted" %
+            template_id, changed=False)
     else:
         try:
             template_module.delete(template)
-            module.exit_json(msg="Template ID %s deleted." % template_id, changed=True)
+            module.exit_json(
+                msg="Template ID %s deleted." %
+                template_id, changed=True)
         except Exception as e:
             module.fail_json(msg=e.message)
+
 
 def update_template(module):
     datacenter, enterprise = lookup_dc_enterprise(module)
 
     if datacenter is None or enterprise is None:
         module.fail_json(msg="Datacenter or enterprise was not found.")
-    
+
     template_id = module.params.get('template_id')
     try:
         dc_repo = enterprise_module.get_repo_for_dc(enterprise, datacenter)
@@ -160,21 +166,29 @@ def update_template(module):
         module.fail_json(msg=e.message)
 
     if template is None:
-        module.exit_json(msg="Template ID %s does not exist." % template_id, changed=False)
+        module.exit_json(
+            msg="Template ID %s does not exist." %
+            template_id, changed=False)
     else:
         try:
             template = template_module.update(template, module)
             template_link = template._extract_link('edit')
-            module.exit_json(msg="Template ID %s updated." % template_id, changed=True, template=template.json, template_link=template_link)
+            module.exit_json(
+                msg="Template ID %s updated." %
+                template_id,
+                changed=True,
+                template=template.json,
+                template_link=template_link)
         except Exception as e:
             module.fail_json(msg=e.message)
+
 
 def import_template(module):
     datacenter, enterprise = lookup_dc_enterprise(module)
 
     if datacenter is None or enterprise is None:
         module.fail_json(msg="Datcenter or enterprise was not found.")
-    
+
     template_id = module.params.get('template_id')
     try:
         dc_repo = enterprise_module.get_repo_for_dc(enterprise, datacenter)
@@ -189,18 +203,32 @@ def import_template(module):
             module.fail_json(msg=e.message)
 
         if template is None:
-            module.fail_json(msg="Template with ID '%s' could not be found in the provider." % template_id)
+            module.fail_json(
+                msg="Template with ID '%s' could not be found in the provider." %
+                template_id)
 
         try:
-            imported_template = template_module.import_template(dc_repo, template)
+            imported_template = template_module.import_template(
+                dc_repo, template)
         except Exception as e:
             module.fail_json(msg=e.message)
 
         imported_template_link = imported_template._extract_link('edit')
-        module.exit_json(msg="Template ID %s imported" % template_id, changed=True, template=imported_template.json, template_link=imported_template_link)
+        module.exit_json(
+            msg="Template ID %s imported" %
+            template_id,
+            changed=True,
+            template=imported_template.json,
+            template_link=imported_template_link)
     else:
         template_link = template._extract_link('edit')
-        module.exit_json(msg="Template ID %s already imported" % template_id, changed=False, template=template.json, template_link=template_link)
+        module.exit_json(
+            msg="Template ID %s already imported" %
+            template_id,
+            changed=False,
+            template=template.json,
+            template_link=template_link)
+
 
 def core(module):
     state = module.params.get('state')
@@ -210,6 +238,7 @@ def core(module):
         update_template(module)
     else:
         delete_template(module)
+
 
 def main():
     arg_spec = abiquo_argument_spec()
@@ -227,7 +256,9 @@ def main():
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_template_import: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(
+            msg='Unanticipated error running abiquo_template_import: %s' %
+            to_native(e), exception=traceback.format_exc())
 
 
 if __name__ == '__main__':

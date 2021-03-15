@@ -2,8 +2,15 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: Ansible Project
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
+import json
+import traceback
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils._text import to_native
+from ansible.module_utils.basic import AnsibleModule
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
@@ -172,13 +179,6 @@ EXAMPLES = '''
 
 '''
 
-import traceback, json
-
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
-
-from ansible.module_utils.abiquo.common import AbiquoCommon
-from ansible.module_utils.abiquo.common import abiquo_argument_spec
 
 def core(module):
     vmsSoft = module.params['vmsSoft']
@@ -197,7 +197,7 @@ def core(module):
     storageHardInMb = module.params['storageHardInMb']
     repositorySoftInMb = module.params['repositorySoftInMb']
     repositoryHardInMb = module.params['repositoryHardInMb']
-    
+
     name = module.params['name']
     isReservationRestricted = module.params['isReservationRestricted']
     workflow = module.params['workflow']
@@ -214,7 +214,8 @@ def core(module):
     api = common.client
 
     try:
-        c, enterprises = api.admin.enterprises.get(headers={'accept':'application/vnd.abiquo.enterprises+json'})
+        c, enterprises = api.admin.enterprises.get(
+            headers={'accept': 'application/vnd.abiquo.enterprises+json'})
         common.check_response(200, c, enterprises)
     except Exception as ex:
         module.fail_json(msg=ex.message)
@@ -227,17 +228,25 @@ def core(module):
                 if common.changes_required(ent_json, new_ent_json):
                     enterprise = common.update_dto(ent, module)
                     enterprise_link = enterprise._extract_link('edit')
-                    module.exit_json(changed=True, enterprise=enterprise.json, enterprise_link=enterprise_link)
+                    module.exit_json(
+                        changed=True,
+                        enterprise=enterprise.json,
+                        enterprise_link=enterprise_link)
                 else:
                     enterprise_link = ent._extract_link('edit')
-                    module.exit_json(changed=False, enterprise=ent.json, enterprise_link=enterprise_link)
+                    module.exit_json(
+                        changed=False,
+                        enterprise=ent.json,
+                        enterprise_link=enterprise_link)
             else:
                 code, entresp = ent.delete()
                 try:
                     common.check_response(204, code, entresp)
                 except Exception as ex:
                     module.fail_json(msg=ex.message)
-                module.exit_json(msg='Enterprise "%s" deleted' % ent.name, changed=True)
+                module.exit_json(
+                    msg='Enterprise "%s" deleted' %
+                    ent.name, changed=True)
 
     if state == 'absent':
         module.exit_json(enterprise=ent.json, changed=False)
@@ -268,7 +277,8 @@ def core(module):
         }
 
         c, ent = api.admin.enterprises.post(
-            headers={'accept':'application/vnd.abiquo.enterprise+json','content-type':'application/vnd.abiquo.enterprise+json'},
+            headers={'accept': 'application/vnd.abiquo.enterprise+json',
+                     'content-type': 'application/vnd.abiquo.enterprise+json'},
             data=json.dumps(enterprise_json)
         )
         try:
@@ -276,6 +286,7 @@ def core(module):
         except Exception as ex:
             module.fail_json(rc=c, msg=ex.message)
         module.exit_json(changed=True, enterprise=ent.json)
+
 
 def main():
     arg_spec = abiquo_argument_spec()
@@ -297,9 +308,11 @@ def main():
         repositorySoftInMb=dict(default=0, required=False, type=int),
         repositoryHardInMb=dict(default=0, required=False, type=int),
         name=dict(default=None, required=True),
-        isReservationRestricted=dict(default=False, required=False, type='bool'),
+        isReservationRestricted=dict(
+            default=False, required=False, type='bool'),
         workflow=dict(default=False, required=False, type='bool'),
-        twoFactorAuthenticationMandatory=dict(default=False, required=False, type='bool'),
+        twoFactorAuthenticationMandatory=dict(
+            default=False, required=False, type='bool'),
         reseller=dict(default=False, required=False, type='bool'),
         keyNode=dict(default=False, required=False, type='bool'),
         state=dict(default='present', choices=['present', 'absent']),
@@ -311,7 +324,9 @@ def main():
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_enterprise: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(
+            msg='Unanticipated error running abiquo_enterprise: %s' %
+            to_native(e), exception=traceback.format_exc())
 
 
 if __name__ == '__main__':

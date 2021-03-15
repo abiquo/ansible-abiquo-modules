@@ -2,8 +2,18 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: Ansible Project
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
+import re
+import json
+import traceback
+from ansible.module_utils.abiquo import pcr
+from ansible.module_utils.abiquo import datacenter
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils._text import to_native
+from ansible.module_utils.basic import AnsibleModule
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
@@ -100,15 +110,6 @@ EXAMPLES = '''
 
 '''
 
-import traceback, json, re
-
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
-
-from ansible.module_utils.abiquo.common import AbiquoCommon
-from ansible.module_utils.abiquo.common import abiquo_argument_spec
-from ansible.module_utils.abiquo import datacenter
-from ansible.module_utils.abiquo import pcr
 
 def core(module):
     uri = module.params['uri']
@@ -125,20 +126,25 @@ def core(module):
     links = []
     if 'datacenters' in module.params:
         datacenters = datacenter.list(module)
-        dcs = filter(lambda x: x.name in module.params.get('datacenters'), datacenters)
+        dcs = filter(
+            lambda x: x.name in module.params.get('datacenters'),
+            datacenters)
         all_pcrs = pcr.list(module)
-        pcrs = filter(lambda x: x.name in module.params.get('datacenters'), all_pcrs)
-        
+        pcrs = filter(
+            lambda x: x.name in module.params.get('datacenters'),
+            all_pcrs)
+
         for dc in dcs + pcrs:
             l = dc._extract_link('edit')
-            linktype = re.search('abiquo\.(.*)\+', l['type'])
+            linktype = re.search('abiquo\\.(.*)\\+', l['type'])
             if linktype:
                 l['rel'] = linktype.group(1)
             else:
                 l['rel'] = 'unknown'
             links.append(l)
 
-    c, rss = api.admin.remoteservices.get(headers={'Accept': 'application/vnd.abiquo.remoteservices+json'})
+    c, rss = api.admin.remoteservices.get(
+        headers={'Accept': 'application/vnd.abiquo.remoteservices+json'})
     try:
         common.check_response(200, c, rss)
     except Exception as ex:
@@ -147,34 +153,46 @@ def core(module):
     for rs in rss:
         if rs.uri == uri:
             if state == 'present':
-                module.exit_json(msg='RS %s at %s already exists' % (rs_type, uri), changed=False, rs=rs.json)
+                module.exit_json(
+                    msg='RS %s at %s already exists' %
+                    (rs_type, uri), changed=False, rs=rs.json)
             else:
                 c, rsresp = rs.delete()
                 try:
                     common.check_response(204, c, rsresp)
                 except Exception as ex:
                     module.fail_json(rc=c, msg=ex.message)
-                module.exit_json(msg='RS %s at %s deleted' % (rs_type, uri), changed=True)
+                module.exit_json(
+                    msg='RS %s at %s deleted' %
+                    (rs_type, uri), changed=True)
 
     if state == 'absent':
-        module.exit_json(msg='RS %s at %s does not exist' % (rs_type, uri), changed=False)
+        module.exit_json(
+            msg='RS %s at %s does not exist' %
+            (rs_type, uri), changed=False)
     else:
         rsjson = {
             'uri': uri,
             'type': rs_type,
             'links': links
         }
-        if uuid is not None and uuid != '': rsjson['uuid'] = uuid 
+        if uuid is not None and uuid != '':
+            rsjson['uuid'] = uuid
 
         c, rs = api.admin.remoteservices.post(
-            headers={'Accept': 'application/vnd.abiquo.remoteservice+json','Content-Type': 'application/vnd.abiquo.remoteservice+json'},
+            headers={
+                'Accept': 'application/vnd.abiquo.remoteservice+json',
+                'Content-Type': 'application/vnd.abiquo.remoteservice+json'},
             data=json.dumps(rsjson)
         )
         try:
             common.check_response(201, c, rs)
         except Exception as ex:
             module.fail_json(rc=c, msg=ex.message)
-        module.exit_json(msg='RS %s at %s created' % (rs_type, uri), changed=True, rs=rs.json)
+        module.exit_json(
+            msg='RS %s at %s created' %
+            (rs_type, uri), changed=True, rs=rs.json)
+
 
 def main():
     arg_spec = abiquo_argument_spec()
@@ -192,7 +210,9 @@ def main():
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_remote_service: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(
+            msg='Unanticipated error running abiquo_remote_service: %s' %
+            to_native(e), exception=traceback.format_exc())
 
 
 if __name__ == '__main__':

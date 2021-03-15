@@ -2,8 +2,18 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: Ansible Project
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
+import json
+import traceback
+from ansible.module_utils.abiquo import public_cloud_credentials as credential_module
+from ansible.module_utils.abiquo import hypervisortype as htype_module
+from ansible.module_utils.abiquo import enterprise as enterprise_module
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils._text import to_native
+from ansible.module_utils.basic import AnsibleModule
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
@@ -109,16 +119,6 @@ EXAMPLES = '''
 
 '''
 
-import traceback, json
-
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
-
-from ansible.module_utils.abiquo.common import AbiquoCommon
-from ansible.module_utils.abiquo.common import abiquo_argument_spec
-from ansible.module_utils.abiquo import enterprise as enterprise_module
-from ansible.module_utils.abiquo import hypervisortype as htype_module
-from ansible.module_utils.abiquo import public_cloud_credentials as credential_module
 
 def lookup_enterprise_htype(module):
     enterprise_link = module.params.get('enterprise')
@@ -127,38 +127,45 @@ def lookup_enterprise_htype(module):
     htype = htype_module.find_by_link(module, htype_link)
 
     if enterprise is None:
-        module.fail_json(msg='Could not find enterprise identified by link "%s"' % json.dumps(enterprise_link))
+        module.fail_json(
+            msg='Could not find enterprise identified by link "%s"' %
+            json.dumps(enterprise_link))
 
     return enterprise, htype
+
 
 def pcr_creds_present(module):
     enterprise, htype = lookup_enterprise_htype(module)
 
     credential = None
     try:
-        credential = credential_module.get_for_enterprise_and_type(module, enterprise, htype)
+        credential = credential_module.get_for_enterprise_and_type(
+            module, enterprise, htype)
     except Exception as e:
         module.fail_json(msg=e.message)
 
     if credential is not None:
         module.exit_json(msg='Enterprise \'%s\' already has *some* credentials for %s' % (enterprise.name, htype.realName),
-            changed=False, credential=credential.json, credential_link=credential._extract_link('edit'))
+                         changed=False, credential=credential.json, credential_link=credential._extract_link('edit'))
     else:
         try:
-            credential = credential_module.add_for_enterprise_and_type(module, enterprise, htype)
+            credential = credential_module.add_for_enterprise_and_type(
+                module, enterprise, htype)
         except Exception as e:
             module.fail_json(msg=e.message)
 
         module.exit_json(msg='Credentials added to enterprise \'%s\' for provider %s' % (enterprise.name, htype.realName),
-            changed=True, credential=credential.json, credential_link=credential._extract_link('edit'))
+                         changed=True, credential=credential.json, credential_link=credential._extract_link('edit'))
+
 
 def pcr_creds_absent(module):
     enterprise, htype = lookup_enterprise_htype(module)
 
-    credential = credential_module.get_for_enterprise_and_type(module, enterprise, htype)
+    credential = credential_module.get_for_enterprise_and_type(
+        module, enterprise, htype)
     if credential is None:
         module.exit_json(msg='Enterprise \'%s\' has no credentials for %s' % (enterprise.name, htype.realName),
-            changed=False)
+                         changed=False)
     else:
         try:
             credential.delete()
@@ -166,7 +173,8 @@ def pcr_creds_absent(module):
             module.fail_json(msg=e.message)
 
         module.exit_json(msg='Credentials deleted for provider %s in enterprise \'%s\' ' % (htype.realName, enterprise.name),
-            changed=True)
+                         changed=True)
+
 
 def core(module):
     state = module.params.get('state')
@@ -175,6 +183,7 @@ def core(module):
         pcr_creds_present(module)
     else:
         pcr_creds_absent(module)
+
 
 def main():
     arg_spec = abiquo_argument_spec()
@@ -192,7 +201,10 @@ def main():
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_public_cloud_credentials: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(
+            msg='Unanticipated error running abiquo_public_cloud_credentials: %s' %
+            to_native(e), exception=traceback.format_exc())
+
 
 if __name__ == '__main__':
     main()

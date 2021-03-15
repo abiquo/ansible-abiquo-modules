@@ -2,8 +2,15 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: Ansible Project
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
+import json
+import traceback
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils._text import to_native
+from ansible.module_utils.basic import AnsibleModule
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
@@ -97,13 +104,6 @@ hwprofiles:
     contains: Check Abiquo API documentation
 '''
 
-import traceback, json
-
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
-
-from ansible.module_utils.abiquo.common import AbiquoCommon
-from ansible.module_utils.abiquo.common import abiquo_argument_spec
 
 def core(module):
     vdc_json = module.params['vdc']
@@ -134,11 +134,13 @@ def core(module):
     all_profiles = []
     for profile in hwprofiles:
         j = profile.json
-        link = profile._extract_link('self') if profile._extract_link('self') is not None else profile._extract_link('edit')
+        link = profile._extract_link('self') if profile._extract_link(
+            'self') is not None else profile._extract_link('edit')
         j['hwprofile_link'] = link
         all_profiles.append(j)
 
     module.exit_json(hwprofiles=all_profiles)
+
 
 def main():
     arg_spec = abiquo_argument_spec()
@@ -153,7 +155,9 @@ def main():
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_vdc_hwprofile_facts: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(
+            msg='Unanticipated error running abiquo_vdc_hwprofile_facts: %s' %
+            to_native(e), exception=traceback.format_exc())
 
 
 if __name__ == '__main__':

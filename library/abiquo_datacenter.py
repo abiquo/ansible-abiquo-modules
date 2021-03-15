@@ -2,8 +2,15 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: Ansible Project
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
+import json
+import traceback
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils._text import to_native
+from ansible.module_utils.basic import AnsibleModule
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
@@ -89,13 +96,6 @@ EXAMPLES = '''
 
 '''
 
-import traceback, json
-
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
-
-from ansible.module_utils.abiquo.common import AbiquoCommon
-from ansible.module_utils.abiquo.common import abiquo_argument_spec
 
 def core(module):
     name = module.params['name']
@@ -109,7 +109,8 @@ def core(module):
     api = common.client
 
     try:
-        c, datacenters = api.admin.datacenters.get(headers={'Accept': 'application/vnd.abiquo.datacenters+json'})
+        c, datacenters = api.admin.datacenters.get(
+            headers={'Accept': 'application/vnd.abiquo.datacenters+json'})
         common.check_response(200, c, datacenters)
     except Exception as ex:
         module.fail_json(msg=ex.message)
@@ -117,28 +118,36 @@ def core(module):
     for dc in datacenters:
         if dc.name == name:
             if state == 'present':
-                module.exit_json(msg='Datacenter "%s"' % name, changed=False, dc=dc.json)
+                module.exit_json(
+                    msg='Datacenter "%s"' %
+                    name, changed=False, dc=dc.json)
             else:
                 c, dcresp = dc.delete()
                 try:
                     common.check_response(204, c, dcresp)
                 except Exception as ex:
                     module.fail_json(rc=c, msg=ex.message)
-                module.exit_json(msg='Datacenter "%s" deleted' % name, changed=True)
+                module.exit_json(
+                    msg='Datacenter "%s" deleted' %
+                    name, changed=True)
 
     if state == 'absent':
         module.exit_json(msg='Datacenter "%s"' % name, changed=False)
     else:
-        dc = { "name": name, "location": location }
+        dc = {"name": name, "location": location}
         c, datacenter = api.admin.datacenters.post(
-            headers={'Accept': 'application/vnd.abiquo.datacenter+json','Content-Type': 'application/vnd.abiquo.datacenter+json'},
+            headers={'Accept': 'application/vnd.abiquo.datacenter+json',
+                     'Content-Type': 'application/vnd.abiquo.datacenter+json'},
             data=json.dumps(dc)
         )
         try:
             common.check_response(201, c, datacenter)
         except Exception as ex:
             module.fail_json(rc=c, msg=ex.message)
-        module.exit_json(msg='Datacenter "%s" created' % name, changed=True, dc=datacenter.json)
+        module.exit_json(
+            msg='Datacenter "%s" created' %
+            name, changed=True, dc=datacenter.json)
+
 
 def main():
     arg_spec = abiquo_argument_spec()
@@ -154,7 +163,9 @@ def main():
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_datacenter: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(
+            msg='Unanticipated error running abiquo_datacenter: %s' %
+            to_native(e), exception=traceback.format_exc())
 
 
 if __name__ == '__main__':

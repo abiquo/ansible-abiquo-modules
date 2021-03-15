@@ -2,8 +2,14 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: Ansible Project
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils._text import to_native
+from ansible.module_utils.basic import AnsibleModule
+import traceback
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
@@ -89,13 +95,6 @@ EXAMPLES = '''
 
 '''
 
-import traceback
-
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
-
-from ansible.module_utils.abiquo.common import AbiquoCommon
-from ansible.module_utils.abiquo.common import abiquo_argument_spec
 
 def core(module):
     name = module.params['name']
@@ -108,7 +107,8 @@ def core(module):
         module.fail_json(msg=ex.message)
     api = common.client
 
-    c, props = api.config.properties.get(headers={'Accept': 'application/vnd.abiquo.systemproperties+json'})
+    c, props = api.config.properties.get(
+        headers={'Accept': 'application/vnd.abiquo.systemproperties+json'})
     try:
         common.check_response(200, c, props)
     except Exception as ex:
@@ -117,7 +117,9 @@ def core(module):
     for prop in props:
         if prop.name == name:
             if prop.value == value:
-                module.exit_json(msg="Property %s already set" % name, changed=False, prop=prop.json)
+                module.exit_json(
+                    msg="Property %s already set" %
+                    name, changed=False, prop=prop.json)
             else:
                 prop.value = value
                 c, prop = prop.put()
@@ -125,7 +127,10 @@ def core(module):
                     common.check_response(200, c, prop)
                 except Exception as ex:
                     module.fail_json(rc=c, msg=ex.message)
-                module.exit_json(msg="Property %s has been updated" % name, changed=True, prop=prop.json)
+                module.exit_json(
+                    msg="Property %s has been updated" %
+                    name, changed=True, prop=prop.json)
+
 
 def main():
     arg_spec = abiquo_argument_spec()
@@ -141,7 +146,9 @@ def main():
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_system_property: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(
+            msg='Unanticipated error running abiquo_system_property: %s' %
+            to_native(e), exception=traceback.format_exc())
 
 
 if __name__ == '__main__':

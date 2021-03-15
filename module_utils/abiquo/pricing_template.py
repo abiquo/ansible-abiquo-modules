@@ -4,11 +4,13 @@ from common import AbiquoCommon
 from abiquo.client import check_response
 from ansible.module_utils.abiquo import currency as currencies_module
 
+
 def list(module):
     common = AbiquoCommon(module)
     api = common.client
 
-    code, pricing_templates = api.config.pricingtemplates.get(headers={'accept':'application/vnd.abiquo.pricingtemplates+json'})
+    code, pricing_templates = api.config.pricingtemplates.get(
+        headers={'accept': 'application/vnd.abiquo.pricingtemplates+json'})
     check_response(200, code, pricing_templates)
 
     all_pricing_templates = []
@@ -16,6 +18,7 @@ def list(module):
         all_pricing_templates.append(ptemplate)
 
     return all_pricing_templates
+
 
 def find(module):
     template_name = module.params.get('name')
@@ -26,15 +29,19 @@ def find(module):
     else:
         return filtered_templates[0]
 
+
 def create(module):
     common = AbiquoCommon(module)
     api = common.client
 
     all_currencies = currencies_module.list(module)
     module_currency_link = module.params.get('currency')
-    currencies = filter(lambda x: x._extract_link('edit')['href'] == module_currency_link['href'], all_currencies)
+    currencies = filter(lambda x: x._extract_link(
+        'edit')['href'] == module_currency_link['href'], all_currencies)
     if len(currencies) == 0:
-        raise ValueError("Currency sith symbol '%s' cannot be found." % module.params.get('currency'))
+        raise ValueError(
+            "Currency sith symbol '%s' cannot be found." %
+            module.params.get('currency'))
     currency_lnk = currencies[0]._extract_link('edit')
     currency_lnk['rel'] = 'currency'
 
@@ -49,17 +56,18 @@ def create(module):
         "minimumCharge": module.params.get('minimumCharge'),
         "defaultTemplate": module.params.get('defaultTemplate'),
         "deployMessage": module.params.get('deployMessage'),
-        "links": [ currency_lnk ]
+        "links": [currency_lnk]
     }
 
     code, cur = api.config.pricingtemplates.post(
         headers={'accept': 'application/vnd.abiquo.pricingtemplate+json',
-                'content-Type': 'application/vnd.abiquo.pricingtemplate+json'},
+                 'content-Type': 'application/vnd.abiquo.pricingtemplate+json'},
         data=json.dumps(pricing_template_dict)
     )
     check_response(201, code, cur)
 
     return cur
+
 
 def delete(template):
     code, resp = template.delete()

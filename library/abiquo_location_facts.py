@@ -2,8 +2,15 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: Ansible Project
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
+import json
+import traceback
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils._text import to_native
+from ansible.module_utils.basic import AnsibleModule
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
@@ -111,19 +118,12 @@ locations:
             type: list
 '''
 
-import traceback, json
-
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
-
-from ansible.module_utils.abiquo.common import AbiquoCommon
-from ansible.module_utils.abiquo.common import abiquo_argument_spec
 
 def core(module):
     enterprise = module.params['enterprise']
     has = module.params['has']
     inscope = module.params['inscope']
-    
+
     try:
         common = AbiquoCommon(module)
     except ValueError as ex:
@@ -150,7 +150,7 @@ def core(module):
         locations.append(dc.json)
 
     c, pcrs = api.cloud.locations.get(headers={'Accept': 'application/vnd.abiquo.publiccloudregions+json'},
-                                             params=params)
+                                      params=params)
     try:
         common.check_response(200, c, pcrs)
     except Exception as ex:
@@ -160,6 +160,7 @@ def core(module):
         locations.append(pcr.json)
 
     module.exit_json(locations=locations)
+
 
 def main():
     arg_spec = abiquo_argument_spec()
@@ -175,7 +176,9 @@ def main():
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_location_facts: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(
+            msg='Unanticipated error running abiquo_location_facts: %s' %
+            to_native(e), exception=traceback.format_exc())
 
 
 if __name__ == '__main__':

@@ -2,27 +2,34 @@ from abiquo.client import Abiquo
 from abiquo.client import check_response
 from requests_oauthlib import OAuth1
 from ansible.module_utils.basic import AnsibleModule
-import json, urllib3, os, re, time, copy
+import json
+import urllib3
+import os
+import re
+import time
+import copy
 
 try:
-    from http.client import HTTPConnection # py3
+    from http.client import HTTPConnection  # py3
 except ImportError:
-    from httplib import HTTPConnection # py2
+    from httplib import HTTPConnection  # py2
+
 
 def abiquo_argument_spec():
     return dict(
-        abiquo_api_url      = dict(default=None, required=False),
-        abiquo_verify       = dict(default=True, required=False, type='bool'),
-        abiquo_api_user     = dict(default=None, required=False),
-        abiquo_api_pass     = dict(default=None, required=False, no_log=True),
-        abiquo_app_key      = dict(default=None, required=False),
-        abiquo_app_secret   = dict(default=None, required=False),
-        abiquo_token        = dict(default=None, required=False, no_log=True),
-        abiquo_token_secret = dict(default=None, required=False, no_log=True),
-        abiquo_max_attempts = dict(default=30, required=False, type='int'),
-        abiquo_retry_delay  = dict(default=10, required=False, type='int'),
-        links               = dict(default=None, required=False, type=dict)
+        abiquo_api_url=dict(default=None, required=False),
+        abiquo_verify=dict(default=True, required=False, type='bool'),
+        abiquo_api_user=dict(default=None, required=False),
+        abiquo_api_pass=dict(default=None, required=False, no_log=True),
+        abiquo_app_key=dict(default=None, required=False),
+        abiquo_app_secret=dict(default=None, required=False),
+        abiquo_token=dict(default=None, required=False, no_log=True),
+        abiquo_token_secret=dict(default=None, required=False, no_log=True),
+        abiquo_max_attempts=dict(default=30, required=False, type='int'),
+        abiquo_retry_delay=dict(default=10, required=False, type='int'),
+        links=dict(default=None, required=False, type=dict)
     )
+
 
 def abiquo_updatable_arguments(args):
     updatable_args = []
@@ -31,6 +38,7 @@ def abiquo_updatable_arguments(args):
             updatable_args.append(arg)
 
     return updatable_args
+
 
 class AbiquoCommon(object):
     NETWORK_SYS_PROPS = [
@@ -56,7 +64,8 @@ class AbiquoCommon(object):
 
         # API URL
         if not api_url:
-            if os.environ.get('ABIQUO_API_URL') is not None and os.environ.get('ABIQUO_API_URL') != "":
+            if os.environ.get('ABIQUO_API_URL') is not None and os.environ.get(
+                    'ABIQUO_API_URL') != "":
                 api_url = os.environ.get('ABIQUO_API_URL')
             else:
                 raise ValueError('Abiquo API URL is missing!!')
@@ -66,33 +75,39 @@ class AbiquoCommon(object):
 
         # Basic auth
         if not api_user:
-            if os.environ.get('ABIQUO_API_USERNAME') is not None and os.environ.get('ABIQUO_API_USERNAME') != "":
+            if os.environ.get('ABIQUO_API_USERNAME') is not None and os.environ.get(
+                    'ABIQUO_API_USERNAME') != "":
                 api_user = os.environ.get('ABIQUO_API_USERNAME')
         if not api_pass:
-            if os.environ.get('ABIQUO_API_PASSWORD') is not None and os.environ.get('ABIQUO_API_PASSWORD') != "":
+            if os.environ.get('ABIQUO_API_PASSWORD') is not None and os.environ.get(
+                    'ABIQUO_API_PASSWORD') != "":
                 api_pass = os.environ.get('ABIQUO_API_PASSWORD')
 
         # OAuth1
         if not app_key:
-            if os.environ.get('ABIQUO_API_APP_KEY') is not None and os.environ.get('ABIQUO_API_APP_KEY') != "":
+            if os.environ.get('ABIQUO_API_APP_KEY') is not None and os.environ.get(
+                    'ABIQUO_API_APP_KEY') != "":
                 app_key = os.environ.get('ABIQUO_API_APP_KEY')
         if not app_secret:
-            if os.environ.get('ABIQUO_API_APP_SECRET') is not None and os.environ.get('ABIQUO_API_APP_SECRET') != "":
+            if os.environ.get('ABIQUO_API_APP_SECRET') is not None and os.environ.get(
+                    'ABIQUO_API_APP_SECRET') != "":
                 app_secret = os.environ.get('ABIQUO_API_APP_SECRET')
         if not token:
-            if os.environ.get('ABIQUO_API_TOKEN') is not None and os.environ.get('ABIQUO_API_TOKEN') != "":
+            if os.environ.get('ABIQUO_API_TOKEN') is not None and os.environ.get(
+                    'ABIQUO_API_TOKEN') != "":
                 token = os.environ.get('ABIQUO_API_TOKEN')
         if not token_secret:
-            if os.environ.get('ABIQUO_API_TOKEN_SECRET') is not None and os.environ.get('ABIQUO_API_TOKEN_SECRET') != "":
+            if os.environ.get('ABIQUO_API_TOKEN_SECRET') is not None and os.environ.get(
+                    'ABIQUO_API_TOKEN_SECRET') != "":
                 token_secret = os.environ.get('ABIQUO_API_TOKEN_SECRET')
 
         if api_user is not None:
             creds = (api_user, api_pass)
         elif app_key is not None:
             creds = OAuth1(app_key,
-                        client_secret=app_secret,
-                        resource_owner_key=token,
-                        resource_owner_secret=token_secret)
+                           client_secret=app_secret,
+                           resource_owner_key=token,
+                           resource_owner_secret=token_secret)
         else:
             raise ValueError('Either basic auth or OAuth creds are required.')
 
@@ -112,12 +127,14 @@ class AbiquoCommon(object):
         return check_response(expected, code, dto)
 
     def login(self):
-        c, user = self.client.login.get(headers={'accept':'application/vnd.abiquo.user+json'})
+        c, user = self.client.login.get(headers={'accept': 'application/vnd.abiquo.user+json'})
         check_response(200, c, user)
         self.user = user
 
     def get_dto_from_link(self, link_json):
-        code, dto = self.client._request("get", link_json['href'], headers={'accept': link_json['type']})
+        code, dto = self.client._request(
+            "get", link_json['href'], headers={
+                'accept': link_json['type']})
         check_response(200, code, dto)
         return dto
 
@@ -127,7 +144,9 @@ class AbiquoCommon(object):
             dto_url_link = self.getLink(dto_json, 'self')
 
         if dto_url_link is not None:
-            code, dto = self.client._request("get", dto_url_link['href'], headers={'accept': dto_url_link['type']})
+            code, dto = self.client._request(
+                "get", dto_url_link['href'], headers={
+                    'accept': dto_url_link['type']})
             check_response(200, code, dto)
             return dto
         else:
@@ -149,7 +168,9 @@ class AbiquoCommon(object):
                 return async_task
             else:
                 time.sleep(delay)
-        raise ValueError('Exceeded %s attempts tracking async task of type %s for %s' % (attempts, task.type, task.ownerId))
+        raise ValueError(
+            'Exceeded %s attempts tracking async task of type %s for %s' %
+            (attempts, task.type, task.ownerId))
 
     def async_task_status_ok(self, async_task):
         jobs = async_task.jobs
@@ -177,7 +198,7 @@ class AbiquoCommon(object):
         raise ValueError('Exceeded %s attempts tracking async task' % attempts)
 
     def login(self):
-        code, user = self.client.login.get(headers={'accept':'application/vnd.abiquo.user+json'})
+        code, user = self.client.login.get(headers={'accept': 'application/vnd.abiquo.user+json'})
         check_response(200, code, user)
         self.user = user
 
@@ -246,16 +267,32 @@ class AbiquoCommon(object):
 
     def getDefaultNetworkDict(self):
         net = {}
-        code, props = self.client.config.properties.get(headers={'Accept': 'application/vnd.abiquo.systemproperties+json'})
+        code, props = self.client.config.properties.get(
+            headers={'Accept': 'application/vnd.abiquo.systemproperties+json'})
         check_response(200, code, props)
 
         net['name'] = (filter(lambda x: x.name == "client.network.defaultName", props)[0]).value
-        net['address'] = (filter(lambda x: x.name == "client.network.defaultAddress", props)[0]).value
+        net['address'] = (
+            filter(
+                lambda x: x.name == "client.network.defaultAddress",
+                props)[0]).value
         net['mask'] = (filter(lambda x: x.name == "client.network.defaultNetmask", props)[0]).value
-        net['gateway'] = (filter(lambda x: x.name == "client.network.defaultGateway", props)[0]).value
-        net['primaryDNS'] = (filter(lambda x: x.name == "client.network.defaultPrimaryDNS", props)[0]).value
-        net['secondaryDNS'] = (filter(lambda x: x.name == "client.network.defaultSecondaryDNS", props)[0]).value
-        net['sufixDNS'] = (filter(lambda x: x.name == "client.network.defaultSufixDNS", props)[0]).value
+        net['gateway'] = (
+            filter(
+                lambda x: x.name == "client.network.defaultGateway",
+                props)[0]).value
+        net['primaryDNS'] = (
+            filter(
+                lambda x: x.name == "client.network.defaultPrimaryDNS",
+                props)[0]).value
+        net['secondaryDNS'] = (
+            filter(
+                lambda x: x.name == "client.network.defaultSecondaryDNS",
+                props)[0]).value
+        net['sufixDNS'] = (
+            filter(
+                lambda x: x.name == "client.network.defaultSufixDNS",
+                props)[0]).value
         net['type'] = 'INTERNAL'
 
         return net

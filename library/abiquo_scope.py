@@ -2,12 +2,20 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: Ansible Project
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
 # from __future__ import absolute_import, division, print_function
 # __metaclass__ = type
 
 
+import json
+import traceback
+from ansible.module_utils.abiquo import scope as common_scope
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils._text import to_native
+from ansible.module_utils.basic import AnsibleModule
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
@@ -114,14 +122,6 @@ EXAMPLES = '''
 
 '''
 
-import traceback, json
-
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
-
-from ansible.module_utils.abiquo.common import AbiquoCommon
-from ansible.module_utils.abiquo.common import abiquo_argument_spec
-from ansible.module_utils.abiquo import scope as common_scope
 
 def update_scope(module):
     scope = common_scope.lookup_by_name(module)
@@ -130,11 +130,19 @@ def update_scope(module):
         try:
             scope = common_scope.update(module, scope)
             scope_link = scope._extract_link('edit')
-            module.exit_json(msg="Scope '%s' updated." % scope.name, changed=True, scope=scope.json, scope_link=scope_link)
+            module.exit_json(
+                msg="Scope '%s' updated." %
+                scope.name,
+                changed=True,
+                scope=scope.json,
+                scope_link=scope_link)
         except Exception as e:
             module.fail_json(msg=e.message)
     else:
-        module.faile_json(msg="Scope '%s' does not exist." % module.params.get('name'), changed=False)
+        module.faile_json(
+            msg="Scope '%s' does not exist." %
+            module.params.get('name'), changed=False)
+
 
 def create_scope(module):
     scope = common_scope.lookup_by_name(module)
@@ -145,10 +153,21 @@ def create_scope(module):
         except Exception as e:
             module.fail_json(msg=e.message)
         scope_link = scope._extract_link('edit')
-        module.exit_json(msg="Scope '%s' created." % scope.name, changed=True, scope=scope.json, scope_link=scope_link)
+        module.exit_json(
+            msg="Scope '%s' created." %
+            scope.name,
+            changed=True,
+            scope=scope.json,
+            scope_link=scope_link)
     else:
         scope_link = scope._extract_link('edit')
-        module.exit_json(msg="Scope '%s' already exists." % scope.name, changed=False, scope=scope.json, scope_link=scope_link)
+        module.exit_json(
+            msg="Scope '%s' already exists." %
+            scope.name,
+            changed=False,
+            scope=scope.json,
+            scope_link=scope_link)
+
 
 def delete_scope():
     scope = common_scope.lookup_by_name(module)
@@ -156,11 +175,17 @@ def delete_scope():
     if scope is not None:
         try:
             scope.delete()
-            module.exit_json(msg="Scope '%s' deleted." % module.params.get('name'), changed=True)
+            module.exit_json(
+                msg="Scope '%s' deleted." %
+                module.params.get('name'), changed=True)
         except Exception as e:
             module.fail_json(msg=e.message)
     else:
-        module.exit_json(msg="Scope '%s' does not exist." % module.params.get('name'), changed=False)
+        module.exit_json(
+            msg="Scope '%s' does not exist." %
+            module.params.get('name'),
+            changed=False)
+
 
 def core(module):
     state = module.params.get('state')
@@ -172,13 +197,22 @@ def core(module):
     else:
         delete_scope(module)
 
+
 def main():
     arg_spec = abiquo_argument_spec()
     arg_spec.update(
         name=dict(default=None, required=True, abiquo_updatable=True),
         scopeEntities=dict(default=None, required=False, type='list'),
-        automaticAddDatacenter=dict(default=False, required=False, type='bool', abiquo_updatable=True),
-        automaticAddEnterprise=dict(default=False, required=False, type='bool', abiquo_updatable=True),
+        automaticAddDatacenter=dict(
+            default=False,
+            required=False,
+            type='bool',
+            abiquo_updatable=True),
+        automaticAddEnterprise=dict(
+            default=False,
+            required=False,
+            type='bool',
+            abiquo_updatable=True),
         scopeParent=dict(default=None, required=False, type='dict'),
         state=dict(default='present', choices=['present', 'absent', 'update']),
     )
@@ -189,7 +223,9 @@ def main():
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_scope: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(
+            msg='Unanticipated error running abiquo_scope: %s' %
+            to_native(e), exception=traceback.format_exc())
 
 
 if __name__ == '__main__':

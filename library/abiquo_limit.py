@@ -2,8 +2,15 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: Ansible Project
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
+import json
+import traceback
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils._text import to_native
+from ansible.module_utils.basic import AnsibleModule
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
@@ -152,13 +159,6 @@ EXAMPLES = '''
 
 '''
 
-import traceback, json
-
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
-
-from ansible.module_utils.abiquo.common import AbiquoCommon
-from ansible.module_utils.abiquo.common import abiquo_argument_spec
 
 def core(module):
     vmsSoft = module.params['vmsSoft']
@@ -177,7 +177,7 @@ def core(module):
     storageHardInMb = module.params['storageHardInMb']
     repositorySoftInMb = module.params['repositorySoftInMb']
     repositoryHardInMb = module.params['repositoryHardInMb']
-    
+
     enterprise = module.params['enterprise']
     location = module.params['location']
 
@@ -192,7 +192,10 @@ def core(module):
     location_lnk = common.getLink(location, 'edit')
 
     try:
-        c, ent = api.admin.enterprises.get(id="%s" % enterprise['id'], headers={'Accept': 'application/vnd.abiquo.enterprise+json'})
+        c, ent = api.admin.enterprises.get(
+            id="%s" %
+            enterprise['id'], headers={
+                'Accept': 'application/vnd.abiquo.enterprise+json'})
         common.check_response(200, c, ent)
     except Exception as ex:
         module.fail_json(msg=ex.message)
@@ -221,7 +224,7 @@ def core(module):
     else:
         location_lnk['rel'] = 'location'
         limit_json = {
-            'links': [ location_lnk ],
+            'links': [location_lnk],
             'vmsSoft': vmsSoft,
             'vmsHard': vmsHard,
             'vlansSoft': vlansSoft,
@@ -242,13 +245,15 @@ def core(module):
 
         try:
             c, lim = ent.follow('limits').post(
-                headers={'accept':'application/vnd.abiquo.limit+json','content-type':'application/vnd.abiquo.limit+json'},
+                headers={'accept': 'application/vnd.abiquo.limit+json',
+                         'content-type': 'application/vnd.abiquo.limit+json'},
                 data=json.dumps(limit_json)
             )
             common.check_response(201, c, lim)
         except Exception as ex:
             module.fail_json(msg=ex.message)
         module.exit_json(changed=True, lim=lim.json)
+
 
 def main():
     arg_spec = abiquo_argument_spec()
@@ -280,7 +285,9 @@ def main():
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_limit: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(
+            msg='Unanticipated error running abiquo_limit: %s' %
+            to_native(e), exception=traceback.format_exc())
 
 
 if __name__ == '__main__':

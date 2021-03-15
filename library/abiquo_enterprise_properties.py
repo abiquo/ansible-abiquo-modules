@@ -2,8 +2,15 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: Ansible Project
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
+import json
+import traceback
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils._text import to_native
+from ansible.module_utils.basic import AnsibleModule
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
@@ -93,18 +100,11 @@ EXAMPLES = '''
 
 '''
 
-import traceback, json
-
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
-
-from ansible.module_utils.abiquo.common import AbiquoCommon
-from ansible.module_utils.abiquo.common import abiquo_argument_spec
 
 def core(module):
     properties = module.params['properties']
     enterprise = module.params['enterprise']
-    
+
     try:
         common = AbiquoCommon(module)
     except ValueError as ex:
@@ -114,7 +114,10 @@ def core(module):
     ent = None
 
     try:
-        c, ent = api.admin.enterprises.get(id="%s" % enterprise['id'], headers={'accept':'application/vnd.abiquo.enterprise+json'})
+        c, ent = api.admin.enterprises.get(
+            id="%s" %
+            enterprise['id'], headers={
+                'accept': 'application/vnd.abiquo.enterprise+json'})
         common.check_response(200, c, ent)
     except Exception as ex:
         module.fail_json(msg=ex.message)
@@ -134,8 +137,8 @@ def core(module):
 
     c, props = ent.follow('properties').put(
         headers={
-            'accept':'application/vnd.abiquo.enterpriseproperties+json',
-            'content-type':'application/vnd.abiquo.enterpriseproperties+json'
+            'accept': 'application/vnd.abiquo.enterpriseproperties+json',
+            'content-type': 'application/vnd.abiquo.enterpriseproperties+json'
         },
         data=json.dumps(properties_json)
     )
@@ -146,11 +149,12 @@ def core(module):
         module.fail_json(rc=c, msg=ex.message)
     module.exit_json(changed=True, properties=props.json)
 
+
 def main():
     arg_spec = abiquo_argument_spec()
     arg_spec.update(
         properties=dict(default=None, required=True, type='dict'),
-            enterprise=dict(default=None, required=True, type='dict'),
+        enterprise=dict(default=None, required=True, type='dict'),
     )
     module = AnsibleModule(
         argument_spec=arg_spec
@@ -159,7 +163,9 @@ def main():
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_enterprise_properties: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(
+            msg='Unanticipated error running abiquo_enterprise_properties: %s' %
+            to_native(e), exception=traceback.format_exc())
 
 
 if __name__ == '__main__':

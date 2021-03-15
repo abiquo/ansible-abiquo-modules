@@ -2,12 +2,20 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: Ansible Project
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
 # from __future__ import absolute_import, division, print_function
 # __metaclass__ = type
 
 
+import json
+import traceback
+from ansible.module_utils.abiquo import pcr
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils._text import to_native
+from ansible.module_utils.basic import AnsibleModule
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
@@ -98,14 +106,7 @@ EXAMPLES = '''
 '''
 
 # import module snippets
-import traceback, json
 
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
-
-from ansible.module_utils.abiquo.common import AbiquoCommon
-from ansible.module_utils.abiquo.common import abiquo_argument_spec
-from ansible.module_utils.abiquo import pcr
 
 def core(module):
     name = module.params.get('name')
@@ -122,27 +123,38 @@ def core(module):
         if pubreg.name == name:
             if state == 'present':
                 pcr_link = pubreg._extract_link('edit')
-                module.exit_json(msg='Public cloud region %s from provider %s already exists' % (region, provider), changed=False, pcr=pubreg.json, pcr_link=pcr_link)
+                module.exit_json(
+                    msg='Public cloud region %s from provider %s already exists' %
+                    (region, provider), changed=False, pcr=pubreg.json, pcr_link=pcr_link)
             else:
                 try:
                     pcr.delete(pubreg)
                 except Exception as ex:
                     module.fail_json(msg=ex.message)
-                module.exit_json(msg='Public cloud region %s from provider %s deleted' % (region, provider), changed=True)
+                module.exit_json(
+                    msg='Public cloud region %s from provider %s deleted' %
+                    (region, provider), changed=True)
 
     if state == 'absent':
-        module.exit_json(msg='Public cloud region %s from provider %s does not exist' % (region, provider), changed=False)
+        module.exit_json(
+            msg='Public cloud region %s from provider %s does not exist' %
+            (region, provider), changed=False)
     else:
         reg = pcr.lookup_region(module)
         if reg is None:
-            module.fail_json(rc=1, msg='Region %s in provider %s has not been found!' % (provider, region))
+            module.fail_json(
+                rc=1, msg='Region %s in provider %s has not been found!' %
+                (provider, region))
 
         try:
             pcreg = pcr.create_pcr(reg, module)
             pcr_link = pcreg._extract_link('edit')
         except Exception as ex:
             module.fail_json(msg=ex.message)
-        module.exit_json(msg='Public cloud region %s from provider %s created' % (region, provider), changed=True, pcr=pcreg.json, pcr_link=pcr_link)
+        module.exit_json(
+            msg='Public cloud region %s from provider %s created' %
+            (region, provider), changed=True, pcr=pcreg.json, pcr_link=pcr_link)
+
 
 def main():
     arg_spec = abiquo_argument_spec()
@@ -159,7 +171,9 @@ def main():
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_public_cloud_region: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(
+            msg='Unanticipated error running abiquo_public_cloud_region: %s' %
+            to_native(e), exception=traceback.format_exc())
 
 
 if __name__ == '__main__':

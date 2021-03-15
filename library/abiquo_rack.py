@@ -2,12 +2,20 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: Ansible Project
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
 # from __future__ import absolute_import, division, print_function
 # __metaclass__ = type
 
 
+import json
+import traceback
+from ansible.module_utils.abiquo import datacenter
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils._text import to_native
+from ansible.module_utils.basic import AnsibleModule
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
@@ -129,14 +137,6 @@ EXAMPLES = '''
 
 '''
 
-import traceback, json
-
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
-
-from ansible.module_utils.abiquo.common import AbiquoCommon
-from ansible.module_utils.abiquo.common import abiquo_argument_spec
-from ansible.module_utils.abiquo import datacenter
 
 def core(module):
     name = module.params.get('name')
@@ -153,7 +153,12 @@ def core(module):
     for rack in racks:
         if rack.name == name:
             if state == 'present':
-                module.exit_json(msg='Rack "%s" already exists' % name, changed=False, rack=rack.json, rack_link=rack._extract_link('edit'))
+                module.exit_json(
+                    msg='Rack "%s" already exists' %
+                    name,
+                    changed=False,
+                    rack=rack.json,
+                    rack_link=rack._extract_link('edit'))
             else:
                 try:
                     datacenter.delete_rack(rack)
@@ -168,7 +173,13 @@ def core(module):
             rack = datacenter.create_rack(dc, module)
         except Exception as ex:
             module.fail_json(msg=ex.message)
-        module.exit_json(msg='Rack "%s" created' % name, changed=True, rack=rack.json, rack_link=rack._extract_link('edit'))
+        module.exit_json(
+            msg='Rack "%s" created' %
+            name,
+            changed=True,
+            rack=rack.json,
+            rack_link=rack._extract_link('edit'))
+
 
 def main():
     arg_spec = abiquo_argument_spec()
@@ -190,7 +201,9 @@ def main():
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_rack: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(
+            msg='Unanticipated error running abiquo_rack: %s' %
+            to_native(e), exception=traceback.format_exc())
 
 
 if __name__ == '__main__':

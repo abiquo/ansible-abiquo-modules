@@ -2,12 +2,18 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: Ansible Project
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
 # from __future__ import absolute_import, division, print_function
 # __metaclass__ = type
 
 
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils._text import to_native
+from ansible.module_utils.basic import AnsibleModule
+import traceback
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
@@ -89,13 +95,7 @@ EXAMPLES = '''
 '''
 
 # import module snippets
-import traceback
 
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
-
-from ansible.module_utils.abiquo.common import AbiquoCommon
-from ansible.module_utils.abiquo.common import abiquo_argument_spec
 
 def core(module):
     code = module.params['code']
@@ -109,7 +109,8 @@ def core(module):
     api = common.client
 
     try:
-        c, licenses = api.config.licenses.get(headers={'Accept': 'application/vnd.abiquo.licenses+json'})
+        c, licenses = api.config.licenses.get(
+            headers={'Accept': 'application/vnd.abiquo.licenses+json'})
         common.check_response(200, c, licenses)
     except Exception as ex:
         module.fail_json(rc=code, msg=ex.message)
@@ -124,13 +125,16 @@ def core(module):
                     common.check_response(204, c, licresp)
                 except Exception as ex:
                     module.fail_json(rc=c, msg=ex.message)
-                module.exit_json(msg='License "%s" deleted' % codeout, changed=True)
+                module.exit_json(
+                    msg='License "%s" deleted' %
+                    codeout, changed=True)
 
     if state == 'absent':
         module.exit_json(msg=codeout, changed=False)
     else:
         c, lic = api.config.licenses.post(
-            headers={'Accept': 'application/vnd.abiquo.license+json','Content-Type': 'application/vnd.abiquo.license+json'},
+            headers={'Accept': 'application/vnd.abiquo.license+json',
+                     'Content-Type': 'application/vnd.abiquo.license+json'},
             data='{ "code": "%s" }' % code
         )
         try:
@@ -138,6 +142,7 @@ def core(module):
         except Exception as ex:
             module.fail_json(rc=c, msg=ex.message)
         module.exit_json(msg=codeout, changed=True, lic=lic.json)
+
 
 def main():
     arg_spec = abiquo_argument_spec()
@@ -152,7 +157,9 @@ def main():
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_license: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(
+            msg='Unanticipated error running abiquo_license: %s' %
+            to_native(e), exception=traceback.format_exc())
 
 
 if __name__ == '__main__':

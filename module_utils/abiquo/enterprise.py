@@ -3,11 +3,13 @@ import json
 from common import AbiquoCommon
 from abiquo.client import check_response
 
+
 def list(module):
     common = AbiquoCommon(module)
     api = common.client
 
-    code, enterprises = api.admin.enterprises.get(headers={'Accept': 'application/vnd.abiquo.enterprises+json'})
+    code, enterprises = api.admin.enterprises.get(
+        headers={'Accept': 'application/vnd.abiquo.enterprises+json'})
     check_response(200, code, enterprises)
 
     all_enterprises = []
@@ -16,12 +18,13 @@ def list(module):
 
     return all_enterprises
 
+
 def find_by_link(module, link):
     common = AbiquoCommon(module)
     api = common.client
 
     code, enterprises = api.admin.enterprises.get(headers={'Accept': 'application/vnd.abiquo.enterprises+json'},
-        params={'has': link['title']})
+                                                  params={'has': link['title']})
     check_response(200, code, enterprises)
 
     for enterprise in enterprises:
@@ -30,6 +33,7 @@ def find_by_link(module, link):
             return enterprise
 
     return None
+
 
 def get_repo_for_dc(enterprise, datacenter):
     code, repos = enterprise.follow('datacenterrepositories').get()

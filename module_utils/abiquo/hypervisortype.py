@@ -3,19 +3,22 @@ import json
 from common import AbiquoCommon
 from abiquo.client import check_response
 
+
 def list(module):
     common = AbiquoCommon(module)
     api = common.client
 
     all_htypes = []
-    
-    code, htypes = api.config.hypervisortypes.get(headers={'Accept': 'application/vnd.abiquo.hypervisortypes+json'})
+
+    code, htypes = api.config.hypervisortypes.get(
+        headers={'Accept': 'application/vnd.abiquo.hypervisortypes+json'})
     common.check_response(200, code, htypes)
 
     for htype in htypes:
         all_htypes.append(htype)
 
     return all_htypes
+
 
 def find_by_link(module, link):
     hypervisortypes = list(module)

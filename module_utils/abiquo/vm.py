@@ -1,7 +1,9 @@
-import time, json
+import time
+import json
 
 from abiquo.client import check_response
 from ansible.module_utils.abiquo.common import AbiquoCommon
+
 
 def find_vm_in_vdc(vapp, vm_label):
     code, vms = vapp.follow('virtualmachines').get()
@@ -12,6 +14,7 @@ def find_vm_in_vdc(vapp, vm_label):
         if vm.label == vm_label:
             return vm
     return None
+
 
 def build_vm_links(module):
     links = []
@@ -24,6 +27,7 @@ def build_vm_links(module):
     links.append(template_link)
 
     return links
+
 
 def create_vm(module):
     cpu = module.params.get('cpu')
@@ -68,8 +72,8 @@ def create_vm(module):
 
     code, vm = vapp.follow('virtualmachines').post(
         headers={
-            'accept':'application/vnd.abiquo.virtualmachine+json',
-            'content-type':'application/vnd.abiquo.virtualmachine+json',
+            'accept': 'application/vnd.abiquo.virtualmachine+json',
+            'content-type': 'application/vnd.abiquo.virtualmachine+json',
         },
         data=json.dumps(vm_json)
     )
@@ -77,11 +81,12 @@ def create_vm(module):
 
     return vm
 
+
 def undeploy_vm(vm, module):
     common = AbiquoCommon(module)
     attempts = module.params.get('abiquo_max_attempts')
     delay = module.params.get('abiquo_retry_delay')
-    
+
     code, undeploy_task = vm.follow('undeploy').post()
     check_response(202, code, undeploy_task)
 
@@ -93,11 +98,12 @@ def undeploy_vm(vm, module):
 
     return vm
 
+
 def deploy_vm(vm, module):
     common = AbiquoCommon(module)
     attempts = module.params.get('abiquo_max_attempts')
     delay = module.params.get('abiquo_retry_delay')
-    
+
     code, deploy_task = vm.follow('deploy').post()
     check_response(202, code, deploy_task)
 
@@ -109,11 +115,13 @@ def deploy_vm(vm, module):
 
     return vm
 
+
 def create_and_deploy_vm(module):
     vm = create_vm(module)
     vm = deploy_vm(vm, module)
 
     return vm
+
 
 def validate_vm_config(module):
     common = AbiquoCommon(module)
@@ -138,7 +146,7 @@ def validate_vm_config(module):
         if hp is None:
             return "This location requires the use of hardware profiles."
 
-        code, hps = location.follow('hardwareprofiles').get(params={'has':hp['title']})
+        code, hps = location.follow('hardwareprofiles').get(params={'has': hp['title']})
         check_response(200, code, hps)
 
         found = False
@@ -154,11 +162,12 @@ def validate_vm_config(module):
     #
     return None
 
+
 def delete_vm(vm, module):
     common = AbiquoCommon(module)
     attempts = module.params.get('abiquo_max_attempts')
     delay = module.params.get('abiquo_retry_delay')
-    
+
     code, delete_task = vm.delete()
     check_response(202, code, delete_task)
 
@@ -173,12 +182,13 @@ def delete_vm(vm, module):
             # VM has already been deleted.
             pass
 
+
 def apply_vm_state(vm, module):
     common = AbiquoCommon(module)
     attempts = module.params.get('abiquo_max_attempts')
     delay = module.params.get('abiquo_retry_delay')
     state = module.params.get('state')
-    
+
     state_dto = {}
     if state == 'shutdown':
         state_dto = {
@@ -200,11 +210,12 @@ def apply_vm_state(vm, module):
 
     return vm
 
+
 def reset_vm(vm, module):
     common = AbiquoCommon(module)
     attempts = module.params.get('abiquo_max_attempts')
     delay = module.params.get('abiquo_retry_delay')
-    
+
     code, reset_task = vm.follow('reset').post()
     check_response(202, code, reset_task)
 
@@ -215,6 +226,7 @@ def reset_vm(vm, module):
         raise Exception("Reset failed on VM '%s' (%s). Check events." % (vm.label, vm.name))
 
     return vm
+
 
 def wait_vm_def_sync(vm, module):
     attempts = module.params.get('abiquo_max_attempts')
@@ -228,4 +240,6 @@ def wait_vm_def_sync(vm, module):
                 return vm
         except KeyError:
             time.sleep(delay)
-    raise ValueError('Exceeded %s attempts waiting for VM first sync for VM %s' % (attempts, vm.label))
+    raise ValueError(
+        'Exceeded %s attempts waiting for VM first sync for VM %s' %
+        (attempts, vm.label))

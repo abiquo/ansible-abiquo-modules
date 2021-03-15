@@ -2,8 +2,16 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: Ansible Project
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
+import json
+import traceback
+from ansible.module_utils.abiquo import pcr as pcr_module
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils._text import to_native
+from ansible.module_utils.basic import AnsibleModule
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
@@ -158,14 +166,6 @@ EXAMPLES = '''
 
 '''
 
-import traceback, json
-
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
-
-from ansible.module_utils.abiquo.common import AbiquoCommon
-from ansible.module_utils.abiquo.common import abiquo_argument_spec
-from ansible.module_utils.abiquo import pcr as pcr_module
 
 def core(module):
     name = module.params['name']
@@ -192,7 +192,8 @@ def core(module):
     api = common.client
 
     try:
-        c, vdcs = api.cloud.virtualdatacenters.get(headers={'Accept': 'application/vnd.abiquo.virtualdatacenters+json'})
+        c, vdcs = api.cloud.virtualdatacenters.get(
+            headers={'Accept': 'application/vnd.abiquo.virtualdatacenters+json'})
         common.check_response(200, c, vdcs)
     except Exception as ex:
         module.fail_json(rc=c, msg=ex.message)
@@ -200,7 +201,9 @@ def core(module):
     for vdc in vdcs:
         if vdc.name == name:
             if state == 'present':
-                module.exit_json(msg='VDC "%s"' % name, changed=False, vdc=vdc.json)
+                module.exit_json(
+                    msg='VDC "%s"' %
+                    name, changed=False, vdc=vdc.json)
             else:
                 c, response = vdc.delete()
                 try:
@@ -233,7 +236,7 @@ def core(module):
             network = common.getDefaultNetworkDict()
 
         vdc_json = {
-            "links": [ location_lnk, enterprise_lnk ],
+            "links": [location_lnk, enterprise_lnk],
             "name": name,
             "hypervisorType": hypervisortype,
             "network": network,
@@ -250,23 +253,23 @@ def core(module):
         }
         code, vdc = api.cloud.virtualdatacenters.post(
             headers={'Accept': 'application/vnd.abiquo.virtualdatacenter+json',
-                    'Content-Type': 'application/vnd.abiquo.virtualdatacenter+json'},
+                     'Content-Type': 'application/vnd.abiquo.virtualdatacenter+json'},
             data=json.dumps(vdc_json)
         )
         try:
             common.check_response(201, code, vdc)
         except Exception as ex:
-            if code == 406: # NARS
+            if code == 406:  # NARS
                 code, task = api.cloud.virtualdatacenters.post(
                     headers={'accept': 'application/vnd.abiquo.asynctask+json',
-                            'content-type': 'application/vnd.abiquo.virtualdatacenter+json'},
+                             'content-type': 'application/vnd.abiquo.virtualdatacenter+json'},
                     data=json.dumps(vdc_json)
                 )
 
                 try:
                     attempts = module.params.get('abiquo_max_attempts')
                     delay = module.params.get('abiquo_retry_delay')
-    
+
                     common.check_response(201, code, task)
                     task = common.track_async_task(task, attempts, delay)
                     if not common.async_task_status_ok(task):
@@ -277,7 +280,10 @@ def core(module):
                     module.fail_json(rc=code, msg=e.message)
             else:
                 module.fail_json(rc=code, msg=ex.message)
-        module.exit_json(msg='VDC "%s" created' % name, changed=True, vdc=vdc.json)
+        module.exit_json(
+            msg='VDC "%s" created' %
+            name, changed=True, vdc=vdc.json)
+
 
 def main():
     arg_spec = abiquo_argument_spec()
@@ -306,7 +312,9 @@ def main():
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_datacenter: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(
+            msg='Unanticipated error running abiquo_datacenter: %s' %
+            to_native(e), exception=traceback.format_exc())
 
 
 if __name__ == '__main__':

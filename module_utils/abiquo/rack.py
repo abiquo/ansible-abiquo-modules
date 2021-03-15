@@ -4,6 +4,7 @@ from common import AbiquoCommon
 from abiquo.client import check_response
 import datacenter
 
+
 def get_machines(rack):
     code, machines = rack.follow('machines').get()
     check_response(200, code, machines)
@@ -14,9 +15,11 @@ def get_machines(rack):
 
     return all_machines
 
+
 def delete_machine(machine):
     code, resp = machine.delete()
     check_response(204, code, resp)
+
 
 def create_machine(rack, module):
     # Get Service Network service type:
@@ -30,18 +33,18 @@ def create_machine(rack, module):
     stype = stypesf[0]
     stypelnk = stype._extract_link('edit')
     stypelnk['rel'] = 'networkservicetype'
-    
+
     # Discover the machine.
     disc_query_params = {
-      'user': module.params.get('user'),
-      'password': module.params.get('password'),
-      'hypervisor': module.params.get('hyp_type'),
-      'ip': module.params.get('ip'),
-      'port': module.params.get('port'),
+        'user': module.params.get('user'),
+        'password': module.params.get('password'),
+        'hypervisor': module.params.get('hyp_type'),
+        'ip': module.params.get('ip'),
+        'port': module.params.get('port'),
     }
 
     hyp = datacenter.discover(dc, disc_query_params)
-    
+
     # Set the network type
     for nic in hyp['networkInterfaces']['collection']:
         if nic['name'] == module.params.get('service_nic'):
@@ -49,12 +52,15 @@ def create_machine(rack, module):
 
     # Enable datastore
     if module.params.get('datastore_name') is None:
-        dsf = filter(lambda x: x['rootPath'] == module.params.get('datastore_root'), hyp['datastores']['collection'])
+        dsf = filter(lambda x: x['rootPath'] == module.params.get(
+            'datastore_root'), hyp['datastores']['collection'])
     else:
-        dsf = filter(lambda x: x['name'] == module.params.get('datastore_name'), hyp['datastores']['collection'])
+        dsf = filter(lambda x: x['name'] == module.params.get(
+            'datastore_name'), hyp['datastores']['collection'])
     ds = dsf[0]
     ds['enabled'] = True
-    if module.params.get('datastore_dir') is not None: ds['directory'] = module.params.get('datastore_dir')
+    if module.params.get('datastore_dir') is not None:
+        ds['directory'] = module.params.get('datastore_dir')
 
     # Set credentials
     hyp['user'] = module.params.get('user')
@@ -62,7 +68,8 @@ def create_machine(rack, module):
 
     # Create the host
     code, machine = rack.follow('machines').post(
-        headers={'accept':'application/vnd.abiquo.machine+json','content-type':'application/vnd.abiquo.machine+json'},
+        headers={'accept': 'application/vnd.abiquo.machine+json',
+                 'content-type': 'application/vnd.abiquo.machine+json'},
         data=json.dumps(hyp))
     check_response(201, code, machine)
     return machine

@@ -2,8 +2,15 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: Ansible Project
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
+import json
+import traceback
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils._text import to_native
+from ansible.module_utils.basic import AnsibleModule
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
@@ -60,7 +67,7 @@ options:
           - OAuth1 token secret
         required: False
         default: null
-    
+
     availableVirtualDatacenters:
         description:
           - List of IDs of restricted VDCs for this user separated by commas
@@ -151,13 +158,6 @@ EXAMPLES = '''
 
 '''
 
-import traceback, json
-
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
-
-from ansible.module_utils.abiquo.common import AbiquoCommon
-from ansible.module_utils.abiquo.common import abiquo_argument_spec
 
 def update_user(user, module, api):
     try:
@@ -174,6 +174,7 @@ def update_user(user, module, api):
         return ent
     except Exception as ex:
         module.fail_json(rc=c, msg=ex.message)
+
 
 def core(module):
     availableVirtualDatacenters = module.params['availableVirtualDatacenters']
@@ -202,13 +203,16 @@ def core(module):
     api = common.client
 
     try:
-        c, ent = api.admin.enterprises.get(id="%s" % enterprise['id'], headers={'accept':'application/vnd.abiquo.enterprise+json'})
+        c, ent = api.admin.enterprises.get(
+            id="%s" %
+            enterprise['id'], headers={
+                'accept': 'application/vnd.abiquo.enterprise+json'})
         common.check_response(200, c, ent)
     except Exception as ex:
         module.fail_json(msg=ex.message)
 
     try:
-        c, users = ent.follow('users').get(params={'has':nick})
+        c, users = ent.follow('users').get(params={'has': nick})
         common.check_response(200, c, users)
     except Exception as ex:
         module.fail_json(msg=ex.message)
@@ -251,10 +255,11 @@ def core(module):
         role_lnk['rel'] = 'role'
         scope_lnk = common.getLink(scope, 'edit')
         scope_lnk['rel'] = 'scope'
-        user_json['links'] = [ enterprise_lnk, role_lnk, scope_lnk ]
+        user_json['links'] = [enterprise_lnk, role_lnk, scope_lnk]
 
         c, usr = ent.follow('users').post(
-            headers={'accept':'application/vnd.abiquo.user+json','content-type':'application/vnd.abiquo.user+json'},
+            headers={'accept': 'application/vnd.abiquo.user+json',
+                     'content-type': 'application/vnd.abiquo.user+json'},
             data=json.dumps(user_json)
         )
         try:
@@ -263,10 +268,12 @@ def core(module):
             module.fail_json(msg=ex.message)
         module.exit_json(changed=True, user=usr.json)
 
+
 def main():
     arg_spec = abiquo_argument_spec()
     arg_spec.update(
-        availableVirtualDatacenters=dict(default=None, required=False, type='list'),
+        availableVirtualDatacenters=dict(
+            default=None, required=False, type='list'),
         email=dict(default=None, required=True),
         locale=dict(default='en_US', required=False),
         name=dict(default=None, required=True),
@@ -290,7 +297,10 @@ def main():
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_user: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(
+            msg='Unanticipated error running abiquo_user: %s' %
+            to_native(e), exception=traceback.format_exc())
+
 
 if __name__ == '__main__':
     main()

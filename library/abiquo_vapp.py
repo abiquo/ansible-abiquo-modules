@@ -2,8 +2,16 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: Ansible Project
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
+import json
+import traceback
+from ansible.module_utils.abiquo import vapp as virtualappliance
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils._text import to_native
+from ansible.module_utils.basic import AnsibleModule
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
@@ -113,14 +121,6 @@ EXAMPLES = '''
 
 '''
 
-import traceback, json
-
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
-
-from ansible.module_utils.abiquo.common import AbiquoCommon
-from ansible.module_utils.abiquo.common import abiquo_argument_spec
-from ansible.module_utils.abiquo import vapp as virtualappliance
 
 def lookup_vapp(module):
     vdc_link = module.params.get('vdc')
@@ -140,6 +140,7 @@ def lookup_vapp(module):
 
     return vapp
 
+
 def vapp_present(module):
     vapp = lookup_vapp(module)
 
@@ -152,16 +153,30 @@ def vapp_present(module):
             module.fail_json(msg=ex.message)
 
         vapp_link = vapp._extract_link('edit')
-        module.exit_json(msg='vApp "%s" created' % vapp.name, changed=True, vapp=vapp.json, vapp_link=vapp_link)
+        module.exit_json(
+            msg='vApp "%s" created' %
+            vapp.name,
+            changed=True,
+            vapp=vapp.json,
+            vapp_link=vapp_link)
     else:
         vapp_link = vapp._extract_link('edit')
-        module.exit_json(msg='vApp "%s" already exists' % vapp.name, changed=False, vapp=vapp.json, vapp_link=vapp_link)
+        module.exit_json(
+            msg='vApp "%s" already exists' %
+            vapp.name,
+            changed=False,
+            vapp=vapp.json,
+            vapp_link=vapp_link)
+
 
 def vapp_absent(module):
     vapp = lookup_vapp(module)
 
     if vapp is None:
-        module.exit_json(msg='vApp "%s" does not exist' % module.params.get('name'), changed=False)
+        module.exit_json(
+            msg='vApp "%s" does not exist' %
+            module.params.get('name'),
+            changed=False)
     else:
         try:
             virtualappliance.delete_vapp(vapp, module)
@@ -169,43 +184,76 @@ def vapp_absent(module):
             module.fail_json(msg=ex.message)
         module.exit_json(msg='vApp "%s" deleted' % vapp.name, changed=True)
 
+
 def vapp_deploy(module):
     vapp = lookup_vapp(module)
 
     if vapp is None:
-        module.exit_json(msg='vApp "%s" does not exist' % module.params.get('name'), changed=False)
+        module.exit_json(
+            msg='vApp "%s" does not exist' %
+            module.params.get('name'),
+            changed=False)
     else:
         vapp_link = vapp._extract_link('edit')
 
         if vapp.state == 'DEPLOYED':
-            module.exit_json(msg='vApp "%s" is already deployed' % vapp.name, changed=False, vapp=vapp.json, vapp_link=vapp_link)
+            module.exit_json(
+                msg='vApp "%s" is already deployed' %
+                vapp.name,
+                changed=False,
+                vapp=vapp.json,
+                vapp_link=vapp_link)
         else:
             try:
                 vapp = virtualappliance.deploy_vapp(vapp, module)
                 if vapp.state != 'DEPLOYED':
-                    module.fail_json(msg='vApp "%s" is not in the desired state' % vapp.name, vapp=vapp.json, vapp_link=vapp_link)
+                    module.fail_json(
+                        msg='vApp "%s" is not in the desired state' %
+                        vapp.name, vapp=vapp.json, vapp_link=vapp_link)
             except Exception as ex:
                 module.fail_json(msg=ex.message)
-            module.exit_json(msg='vApp "%s" has been deployed' % vapp.name, changed=True, vapp=vapp.json, vapp_link=vapp_link)
+            module.exit_json(
+                msg='vApp "%s" has been deployed' %
+                vapp.name,
+                changed=True,
+                vapp=vapp.json,
+                vapp_link=vapp_link)
+
 
 def vapp_undeploy(module):
     vapp = lookup_vapp(module)
 
     if vapp is None:
-        module.exit_json(msg='vApp "%s" does not exist' % module.params.get('name'), changed=False)
+        module.exit_json(
+            msg='vApp "%s" does not exist' %
+            module.params.get('name'),
+            changed=False)
     else:
         vapp_link = vapp._extract_link('edit')
 
         if vapp.state == 'NOT_DEPLOYED':
-            module.exit_json(msg='vApp "%s" is already undeployed' % vapp.name, changed=False, vapp=vapp.json, vapp_link=vapp_link)
+            module.exit_json(
+                msg='vApp "%s" is already undeployed' %
+                vapp.name,
+                changed=False,
+                vapp=vapp.json,
+                vapp_link=vapp_link)
         else:
             try:
                 vapp = virtualappliance.undeploy_vapp(vapp, module)
                 if vapp.state != 'NOT_DEPLOYED':
-                    module.fail_json(msg='vApp "%s" is not in the desired state' % vapp.name, vapp=vapp.json, vapp_link=vapp_link)
+                    module.fail_json(
+                        msg='vApp "%s" is not in the desired state' %
+                        vapp.name, vapp=vapp.json, vapp_link=vapp_link)
             except Exception as ex:
                 module.fail_json(msg=ex.message)
-            module.exit_json(msg='vApp "%s" has been undeployed' % vapp.name, changed=True, vapp=vapp.json, vapp_link=vapp_link)
+            module.exit_json(
+                msg='vApp "%s" has been undeployed' %
+                vapp.name,
+                changed=True,
+                vapp=vapp.json,
+                vapp_link=vapp_link)
+
 
 def core(module):
     state = module.params.get('state')
@@ -219,6 +267,7 @@ def core(module):
     elif state == 'undeploy':
         vapp_undeploy(module)
 
+
 def main():
     arg_spec = abiquo_argument_spec()
     arg_spec.update(
@@ -228,7 +277,13 @@ def main():
         description=dict(default=None, required=False),
         restricted=dict(default=False, required=False, type='bool'),
         force=dict(default=False, required=False, type='bool'),
-        state=dict(default='present', choices=['present', 'absent', 'undeploy', 'deploy']),
+        state=dict(
+            default='present',
+            choices=[
+                'present',
+                'absent',
+                'undeploy',
+                'deploy']),
     )
     module = AnsibleModule(
         argument_spec=arg_spec
@@ -237,7 +292,9 @@ def main():
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_vapp: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(
+            msg='Unanticipated error running abiquo_vapp: %s' %
+            to_native(e), exception=traceback.format_exc())
 
 
 if __name__ == '__main__':

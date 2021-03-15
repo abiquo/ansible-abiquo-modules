@@ -2,12 +2,21 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: Ansible Project
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
 # from __future__ import absolute_import, division, print_function
 # __metaclass__ = type
 
 
+import json
+import traceback
+from ansible.module_utils.abiquo import rack
+from ansible.module_utils.abiquo import datacenter
+from ansible.module_utils.abiquo.common import abiquo_argument_spec
+from ansible.module_utils.abiquo.common import AbiquoCommon
+from ansible.module_utils._text import to_native
+from ansible.module_utils.basic import AnsibleModule
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
@@ -130,15 +139,7 @@ EXAMPLES = '''
 '''
 
 # import module snippets
-import traceback, json
 
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
-
-from ansible.module_utils.abiquo.common import AbiquoCommon
-from ansible.module_utils.abiquo.common import abiquo_argument_spec
-from ansible.module_utils.abiquo import datacenter
-from ansible.module_utils.abiquo import rack
 
 def core(module):
     ip = module.params.get('ip')
@@ -150,12 +151,15 @@ def core(module):
         common = AbiquoCommon(module)
     except ValueError as ex:
         module.fail_json(msg=ex.message)
-    
+
     # dcs = common.get_datacenters()
     dcs = datacenter.list(module)
     dcsf = filter(lambda x: x.name == dc_name, dcs)
     if len(dcs) == 0:
-        module.fail_json(rc=1, msg='Datacenter "%s" has not been found!' % dc_name)
+        module.fail_json(
+            rc=1,
+            msg='Datacenter "%s" has not been found!' %
+            dc_name)
     dc = dcsf[0]
 
     racks = datacenter.get_racks(dc)
@@ -166,11 +170,13 @@ def core(module):
 
     machines = rack.get_machines(rackdto)
     machine = next((m for m in machines if m.ip == ip), None)
-    
+
     if machine is None:
         # Machine does not exist
         if state == 'absent':
-            module.exit_json(msg='Machine with IP %s does not exist' % ip, changed=False)
+            module.exit_json(
+                msg='Machine with IP %s does not exist' %
+                ip, changed=False)
         else:
             # CREATE IT
             try:
@@ -178,17 +184,30 @@ def core(module):
                 machine_link = machine._extract_link('edit')
             except Exception as ex:
                 module.fail_json(msg=ex.message)
-            module.exit_json(msg='Machine with IP %s has been created' % ip, changed=True, machine=machine.json, machine_link=machine_link)
+            module.exit_json(
+                msg='Machine with IP %s has been created' %
+                ip,
+                changed=True,
+                machine=machine.json,
+                machine_link=machine_link)
     else:
         if state == 'absent':
             try:
                 rack.delete_machine(machine)
             except Exception as ex:
                 module.fail_json(msg=ex.message)
-            module.exit_json(msg='Machine with IP %s has been deleted' % ip, changed=True)
+            module.exit_json(
+                msg='Machine with IP %s has been deleted' %
+                ip, changed=True)
         else:
             machine_link = machine._extract_link('edit')
-            module.exit_json(msg='Machine with IP %s already exists' % ip, changed=False, machine=machine.json, machine_link=machine_link)
+            module.exit_json(
+                msg='Machine with IP %s already exists' %
+                ip,
+                changed=False,
+                machine=machine.json,
+                machine_link=machine_link)
+
 
 def main():
     arg_spec = abiquo_argument_spec()
@@ -211,13 +230,17 @@ def main():
         argument_spec=arg_spec
     )
 
-    if module.params.get('datastore_name') is None and module.params.get('datastore_root') is None:
-        module.fail_json(msg="either datastore_name or datastore_root are required")
+    if module.params.get('datastore_name') is None and module.params.get(
+            'datastore_root') is None:
+        module.fail_json(
+            msg="either datastore_name or datastore_root are required")
 
     try:
         core(module)
     except Exception as e:
-        module.fail_json(msg='Unanticipated error running abiquo_machine: %s' % to_native(e), exception=traceback.format_exc())
+        module.fail_json(
+            msg='Unanticipated error running abiquo_machine: %s' %
+            to_native(e), exception=traceback.format_exc())
 
 
 if __name__ == '__main__':
