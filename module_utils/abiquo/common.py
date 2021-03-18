@@ -270,29 +270,28 @@ class AbiquoCommon(object):
         code, props = self.client.config.properties.get(
             headers={'Accept': 'application/vnd.abiquo.systemproperties+json'})
         check_response(200, code, props)
-
-        net['name'] = (filter(lambda x: x.name == "client.network.defaultName", props)[0]).value
+        net['name'] = (list(filter(lambda x: x.name == "client.network.defaultName", props))[0]).value
         net['address'] = (
-            filter(
+            list(filter(
                 lambda x: x.name == "client.network.defaultAddress",
-                props)[0]).value
-        net['mask'] = (filter(lambda x: x.name == "client.network.defaultNetmask", props)[0]).value
+                props))[0]).value
+        net['mask'] = (list(filter(lambda x: x.name == "client.network.defaultNetmask", props))[0]).value
         net['gateway'] = (
-            filter(
+            list(filter(
                 lambda x: x.name == "client.network.defaultGateway",
-                props)[0]).value
+                props))[0]).value
         net['primaryDNS'] = (
-            filter(
+            list(filter(
                 lambda x: x.name == "client.network.defaultPrimaryDNS",
-                props)[0]).value
+                props))[0]).value
         net['secondaryDNS'] = (
-            filter(
+            list(filter(
                 lambda x: x.name == "client.network.defaultSecondaryDNS",
-                props)[0]).value
+                props))[0]).value
         net['sufixDNS'] = (
-            filter(
+            list(filter(
                 lambda x: x.name == "client.network.defaultSufixDNS",
-                props)[0]).value
+                props))[0]).value
         net['type'] = 'INTERNAL'
 
         return net

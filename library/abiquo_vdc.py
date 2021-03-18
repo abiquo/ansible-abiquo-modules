@@ -7,7 +7,6 @@
 
 import json
 import traceback
-from ansible.module_utils.abiquo import pcr as pcr_module
 from ansible.module_utils.abiquo.common import abiquo_argument_spec
 from ansible.module_utils.abiquo.common import AbiquoCommon
 from ansible.module_utils._text import to_native
@@ -76,7 +75,7 @@ options:
     enterprise:
         description:
           - Enterprise where to create the VDC as returned by abiquo_enterprise_facts module (or an equivalent dict)
-        required: True
+        required: False
     location:
         description:
           - Location for the virtual datacenter as returned by abiquo_location_facts module (or an equivalent dict)
@@ -203,7 +202,11 @@ def core(module):
             if state == 'present':
                 module.exit_json(
                     msg='VDC "%s"' %
-                    name, changed=False, vdc=vdc.json)
+                    name,
+                    changed=False,
+                    vdc=vdc.json,
+                    vdc_link=vdc._extract_link('edit')
+                )
             else:
                 c, response = vdc.delete()
                 try:
@@ -221,17 +224,17 @@ def core(module):
             enterprise = common.getMyEnterprise()
             enterprise_lnk = common.getLink(enterprise.json, 'edit')
         else:
-            enterprise_lnk = enterprise
+            enterprise_lnk = common.getLink(enterprise, 'edit')
             enterprise_lnk['rel'] = 'enterprise'
 
         if hypervisortype is None:
             location = common.getDTO(location)
-            code, hypervisortype = location.follow('hypervisortype').get()
+            code, hypervisortype = location.follow('hypervisors').get()
             try:
                 common.check_response(200, code, hypervisortype)
             except Exception as ex:
                 module.fail_json(rc=code, msg=ex.message)
-            hypervisortype = hypervisortype.name
+            hypervisortype = hypervisortype.collection[0]['name']
         if network is None:
             network = common.getDefaultNetworkDict()
 
@@ -251,6 +254,7 @@ def core(module):
             "cpuSoft": cpuSoft,
             "cpuHard": cpuHard
         }
+
         code, vdc = api.cloud.virtualdatacenters.post(
             headers={'Accept': 'application/vnd.abiquo.virtualdatacenter+json',
                      'Content-Type': 'application/vnd.abiquo.virtualdatacenter+json'},
@@ -280,9 +284,14 @@ def core(module):
                     module.fail_json(rc=code, msg=e.message)
             else:
                 module.fail_json(rc=code, msg=ex.message)
+
         module.exit_json(
             msg='VDC "%s" created' %
-            name, changed=True, vdc=vdc.json)
+            name,
+            changed=True,
+            vdc=vdc.json,
+            vdc_link=vdc._extract_link('edit')
+        )
 
 
 def main():
