@@ -8,6 +8,7 @@
 import json
 import traceback
 from ansible.module_utils.abiquo import vm as virtualmachine
+from ansible.module_utils.abiquo import tag as tag_utils
 from ansible.module_utils.abiquo.common import abiquo_argument_spec
 from ansible.module_utils.abiquo.common import AbiquoCommon
 from ansible.module_utils._text import to_native
@@ -68,8 +69,6 @@ options:
           - OAuth1 token secret
         required: False
         default: null
-
-
     cpu:
         description:
           - Integer Number of CPUs in the VM
@@ -97,7 +96,7 @@ options:
     label:
         description:
           - String  Friendly name of the VM. Displayed as the "Name" field in the user interface.
-        required: False
+        required: True
     vdrpEnabled:
         description:
           - Boolean If true, the VM should accept remote access connections
@@ -138,33 +137,28 @@ options:
         description:
           - String  The URI of the icon of VM
         required: False
-
-
-
     hardwareprofile:
         description:
           - Link to the hardware profile to use for the VM.
         required: False
-
-
-
     template:
         description:
           - Link of the template to use to instantiate the VM
+        required: True
+    tags:
+        description:
+          - Tags dict with key-value items
+        type: dict
         required: True
     vapp:
         description:
           - Link of the vApp where to create the VM
         required: True
-
-
     wait_for_first_sync:
         description:
           - Wheter or not wait for the first VM definition sync on deploy
         required: False
         default: False
-
-
     state:
         description:
           - State of the datacenter
@@ -174,7 +168,6 @@ options:
 '''
 
 EXAMPLES = '''
-
 - name: Create VM 'vm1'
   abiquo_vm:
     api_url: http://localhost:8009/api
@@ -233,6 +226,7 @@ def vm_present(module):
 
         try:
             vm = virtualmachine.create_vm(module)
+            tag_utils.create_tags(vm, module)
         except ValueError as exv:
             module.fail_json(msg=exv.message)
         except Exception as ex:
@@ -388,6 +382,7 @@ def main():
         iconUrl=dict(default=None, required=False),
         hardwareprofile=dict(default=None, required=False, type='dict'),
         template=dict(default=None, required=True, type='dict'),
+        tags=dict(default={}, required=False, type='dict'),
         vapp=dict(default=None, required=True, type='dict'),
         wait_for_first_sync=dict(default=False, required=False, type='bool'),
         state=dict(

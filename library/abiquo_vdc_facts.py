@@ -5,8 +5,8 @@
 # GNU General Public License v3.0+ (see COPYING or
 # https://www.gnu.org/licenses/gpl-3.0.txt)
 
-import json
 import traceback
+from abiquo.client import check_response
 from ansible.module_utils.abiquo.common import abiquo_argument_spec
 from ansible.module_utils.abiquo.common import AbiquoCommon
 from ansible.module_utils._text import to_native
@@ -79,6 +79,10 @@ options:
         description:
           - If present filter to apply in the search.
         required: False
+    id:
+        description:
+          - If present, it will return the vdc for the vdc with this id
+        required: False
 '''
 
 EXAMPLES = '''
@@ -89,6 +93,13 @@ EXAMPLES = '''
     api_user: admin
     api_pass: xabiquo
     has: someName
+    
+- name: Gather available VDCs with id '9'
+  abiquo_vdc_facts:
+    api_url: http://localhost:8009/api
+    api_user: admin
+    api_pass: xabiquo
+    id: 9
 
 - name: Gather all available VDCs
   abiquo_vdc_facts:
@@ -105,11 +116,11 @@ vdcs:
     type: complex
     contains:
         id:
-            description: The ID of the location.
+            description: The ID of the vdc.
             returned: always
             type: string
         name:
-            description: The name of the location.
+            description: The name of the vdc.
             returned: always
             type: string
         links:
@@ -123,6 +134,7 @@ def core(module):
     enterprise = module.params['enterprise']
     datacenter = module.params['datacenter']
     has = module.params['has']
+    vdc_id = module.params['id']
 
     try:
         common = AbiquoCommon(module)
@@ -131,25 +143,37 @@ def core(module):
     api = common.client
 
     all_vdcs = []
-    params = {}
-    if has is not None:
-        params['has'] = has
-    if enterprise is not None:
-        params['enterprise'] = enterprise
-    if datacenter is not None:
-        params['datacenter'] = datacenter
 
-    c, vdcs = api.cloud.virtualdatacenters.get(headers={'Accept': 'application/vnd.abiquo.virtualdatacenters+json'},
-                                               params=params)
     try:
-        common.check_response(200, c, vdcs)
+        if vdc_id is not None:
+            c, vdc = api.cloud.virtualdatacenters(vdc_id).get(
+                headers={'Accept': 'application/vnd.abiquo.virtualdatacenter+json'})
+            check_response(200, c, vdc)
+            j = vdc.json
+            j['vdc_link'] = vdc._extract_link('edit')
+            all_vdcs.append(j)
+        else:
+            params = {}
+            if has is not None:
+                params['has'] = has
+            if enterprise is not None:
+                params['enterprise'] = enterprise
+            if datacenter is not None:
+                params['datacenter'] = datacenter
+
+            c, vdcs = api.cloud.virtualdatacenters.get(
+                headers={'Accept': 'application/vnd.abiquo.virtualdatacenters+json'},
+                params=params
+            )
+
+            check_response(200, c, vdcs)
+
+            for vdc in vdcs:
+                j = vdc.json
+                j['vdc_link'] = vdc._extract_link('edit')
+                all_vdcs.append(j)
     except Exception as ex:
         module.fail_json(rc=c, msg=ex.message)
-
-    for vdc in vdcs:
-        j = vdc.json
-        j['vdc_link'] = vdc._extract_link('edit')
-        all_vdcs.append(j)
 
     module.exit_json(vdcs=all_vdcs)
 
@@ -159,7 +183,8 @@ def main():
     arg_spec.update(
         enterprise=dict(default=None, required=False),
         datacenter=dict(default=None, required=False),
-        has=dict(default=None, required=False)
+        has=dict(default=None, required=False),
+        id=dict(default=None, required=False)
     )
     module = AnsibleModule(
         argument_spec=arg_spec
