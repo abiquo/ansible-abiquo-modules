@@ -1,6 +1,6 @@
 import json
 
-from common import AbiquoCommon
+from ansible.module_utils.abiquo.common import AbiquoCommon
 from abiquo.client import check_response
 from ansible.module_utils.abiquo.common import abiquo_updatable_arguments
 
@@ -87,6 +87,14 @@ def search_by_id(dc_repo, template_id):
 
     return None
 
+def upload(template_file_path, module, datacenter_name):
+    code, template = dc_repo.follow('virtualmachinetemplates').post(
+        headers={'accept': 'application/vnd.abiquo.virtualmachinetemplate+json',
+                 'content-type': 'application/vnd.abiquo.virtualmachinetemplate+json'},
+        data=json.dumps(template_data)
+    )
+    check_response(201, code, template)
+    return template
 
 def import_template(dc_repo, template):
     code, template = dc_repo.follow('virtualmachinetemplates').post(
