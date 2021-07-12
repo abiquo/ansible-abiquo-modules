@@ -5,12 +5,6 @@
 # GNU General Public License v3.0+ (see COPYING or
 # https://www.gnu.org/licenses/gpl-3.0.txt)
 
-# from __future__ import absolute_import, division, print_function
-# __metaclass__ = type
-
-
-import time
-import json
 import traceback
 from ansible.module_utils.abiquo import template
 from ansible.module_utils.abiquo import datacenter
@@ -18,10 +12,10 @@ from ansible.module_utils.abiquo.common import abiquo_argument_spec
 from ansible.module_utils.abiquo.common import AbiquoCommon
 from ansible.module_utils._text import to_native
 from ansible.module_utils.basic import AnsibleModule
+
 ANSIBLE_METADATA = {'metadata_version': '0.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
-
 
 DOCUMENTATION = '''
 ---
@@ -92,6 +86,7 @@ options:
 '''
 
 EXAMPLES = '''
+
   - name: Upload templates
     abiquo_template:
       api_url: http://localhost:8009/api
@@ -100,65 +95,48 @@ EXAMPLES = '''
       datacenter: some-dc
       template_file_path: /home/xrins/file.ova
       state: present
-'''
 
-# import module snippets
+'''
 
 
 def core(module):
-    dc_name = module.params['datacenter']
     state = module.params['state']
     template_file_path = module.params['template_file_path']
+    template_name = module.params['template_name']
+    enterprise_id = module.params['enterprise_id']
+    am_url = module.params['abiquo_am_url']
+    api_user = module.params['abiquo_api_user']
+    api_pass = module.params['abiquo_api_pass']
 
-    try:
-        common = AbiquoCommon(module)
-    except ValueError as ex:
-        module.fail_json(msg=ex.message)
-    api = common.client
+    if state == 'present':
+        try:
+            template_response = template.upload(am_url, api_user, api_pass, enterprise_id, template_file_path)
+        except Exception as ex:
+            module.fail_json(msg=ex)
 
-    datacenters = datacenter.list(module)
-    dc = filter(lambda x: x.name == dc_name, datacenters)
-    if len(dc) == 0:
-        module.fail_json(rc=1, msg='Datcenter "%s" has not been found!' % dc)
-    dc = dc[0]
-
-    if state == 'present' or state == 'upload':
-        tpl_link = tpl._extract_link('edit')
-        if module.params.get('attribs') is not None:
-            try:
-                tpl = template.upload(template_file_path, module)
-            except Exception as ex:
-                module.fail_json(msg=ex.message)
-            module.exit_json(
-                msg='Template %s updated in datacenter %s' %
-                (template_name,
-                    dc_name),
-                changed=True,
-                template=tpl.json,
-                template_link=tpl_link)
         module.exit_json(
-            msg='Template %s already exists in datacenter %s' %
-            (template_name,
-                dc_name),
-            changed=False,
-            template=tpl.json,
-            template_link=tpl_link)
+            msg='Template {} uploaded'.format(template_name),
+            changed=True,
+            template=template_response
+        )
 
+    module.exit_json(vdcs={})
 
 
 def main():
     arg_spec = abiquo_argument_spec()
     arg_spec.update(
+        abiquo_am_url=dict(default=None, required=True),
         template_name=dict(default=None, required=True),
-        datacenter=dict(default=None, required=True),
-        attribs=dict(default=None, required=False, type=dict),
-        wait_for_download=dict(default=False, required=False, type='bool'),
-        template_file_path=dict(default={}, required=False),
+        enterprise_id=dict(default=None, required=True),
+        # attribs=dict(default=None, required=False, type=dict),
+        template_file_path=dict(default=None, required=True),
         state=dict(
             default='present',
             choices=[
-                'present',
-                'upload']),
+                'present'
+            ]
+        ),
     )
     module = AnsibleModule(
         argument_spec=arg_spec
@@ -169,7 +147,7 @@ def main():
     except Exception as e:
         module.fail_json(
             msg='Unanticipated error running abiquo_template_upload_file: %s' %
-            to_native(e), exception=traceback.format_exc())
+                to_native(e), exception=traceback.format_exc())
 
 
 if __name__ == '__main__':
