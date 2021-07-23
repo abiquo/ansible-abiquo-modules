@@ -19,7 +19,7 @@ ANSIBLE_METADATA = {'metadata_version': '0.1',
 
 DOCUMENTATION = '''
 ---
-module: abiquo_template_upload_file
+module: abiquo_template_upload_ova
 short_description: Upload OVA files in an Abiquo cloud platform
 description:
     - Upload OVA files in an Abiquo cloud platform
@@ -108,19 +108,18 @@ def core(module):
     api_user = module.params['abiquo_api_user']
     api_pass = module.params['abiquo_api_pass']
 
-    if state == 'present':
-        try:
-            template_response = template.upload(am_url, api_user, api_pass, enterprise_id, template_file_path)
-        except Exception as ex:
-            module.fail_json(msg=ex)
-
-        module.exit_json(
-            msg='Template {} uploaded'.format(template_name),
-            changed=True,
-            template=template_response
-        )
-
-    module.exit_json(vdcs={})
+    try:
+        template_response = template.upload(am_url, api_user, api_pass, enterprise_id, template_file_path)
+        if template_response.status_code == 201:
+            module.exit_json(
+                msg='Template {} uploaded'.format(template_file_path),
+                changed=True,
+            )
+        else:
+            module.fail_json(msg="AM response: {}".format(template_response.status_code))
+    
+    except Exception as ex:
+        module.fail_json(msg=ex)
 
 
 def main():
@@ -146,7 +145,7 @@ def main():
         core(module)
     except Exception as e:
         module.fail_json(
-            msg='Unanticipated error running abiquo_template_upload_file: %s' %
+            msg='Unanticipated error running abiquo_template_upload_ova: %s' %
                 to_native(e), exception=traceback.format_exc())
 
 

@@ -1,6 +1,6 @@
 import json
 
-from common import AbiquoCommon
+from ansible.module_utils.abiquo.common import AbiquoCommon
 from abiquo.client import check_response
 
 
