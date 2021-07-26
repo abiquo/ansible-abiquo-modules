@@ -1,9 +1,9 @@
 import json
 
-from common import AbiquoCommon
+import requests
 from abiquo.client import check_response
+from ansible.module_utils.abiquo.common import AbiquoCommon
 from ansible.module_utils.abiquo.common import abiquo_updatable_arguments
-
 from ansible.module_utils.abiquo import datacenter
 
 
@@ -26,7 +26,6 @@ def update(template, module):
             check_response(200, code, template)
 
     return template
-
 
 def download(module, datacenter_name, remote_repository_url, template_name):
     common = AbiquoCommon(module)
@@ -97,6 +96,18 @@ def import_template(dc_repo, template):
     check_response(201, code, template)
     return template
 
+
+def upload(am_url, api_user, api_pass, enterpriseId, template_file_path):
+    templates_url = "{}/erepos/{}/templates".format(am_url, enterpriseId)
+    response = requests.post(
+        templates_url,
+        auth=(api_user, api_pass),
+        files={
+            "diskFile": ('file.ova', open(template_file_path, 'rb'), 'application/octet-stream'),
+        },
+        verify=False,
+    )
+    return response
 
 def find_by_disk_path(dc_repo, template_id):
     code, templates = dc_repo.follow('virtualmachinetemplates').get()
