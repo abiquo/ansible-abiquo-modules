@@ -128,7 +128,6 @@ def main():
         abiquo_am_url=dict(default=None, required=True),
         template_name=dict(default=None, required=True),
         enterprise_id=dict(default=None, required=True),
-        # attribs=dict(default=None, required=False, type=dict),
         template_file_path=dict(default=None, required=True),
         state=dict(
             default='present',

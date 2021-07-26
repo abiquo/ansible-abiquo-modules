@@ -82,7 +82,7 @@ def search_by_id(dc_repo, template_id):
 
     for template in templates:
         if template.id == template_id:
-            return templates
+            return template
 
     return None
 
