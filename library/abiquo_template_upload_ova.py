@@ -5,10 +5,8 @@
 # GNU General Public License v3.0+ (see COPYING or
 # https://www.gnu.org/licenses/gpl-3.0.txt)
 
-from logging import raiseExceptions
 import traceback
-from ansible.module_utils.abiquo import template
-from ansible.module_utils.abiquo import datacenter
+from ansible.module_utils.abiquo import template as template_module
 from ansible.module_utils.abiquo.common import abiquo_argument_spec
 from ansible.module_utils.abiquo.common import AbiquoCommon
 from ansible.module_utils._text import to_native
@@ -31,15 +29,6 @@ requirements:
     - "python >= 2.6"
     - "abiquo-api >= 0.1.13"
 options:
-    template_name:
-        description:
-          - Define the uploaded template name
-        required: True
-    guest_setup_type:
-        description:
-          - Define the gues setup type of the template.
-        choices: ["HYPERVISOR_TOOLS", "CLOUD_INIT"]
-        required: True
     api_url:
         description:
           - Define the Abiquo API endpoint URL
@@ -79,34 +68,36 @@ options:
           - OAuth1 token secret
         required: False
         default: null
-    dc_id:
+    datacenter_id:
         description:
           - ID of the datacenter repository where the template should be uploaded
         required: True
-    wait_for_download:
+    template_name:
         description:
-          - If state is download, whether or not to wait for the template to be fully downloaded before moving on.
-        required: False
-        default: no
+          - Define the uploaded template name
+        required: True
+    guest_setup_type:
+        description:
+          - Define the gues setup type of the template.
+        choices: ["HYPERVISOR_TOOLS", "CLOUD_INIT"]
+        required: True
     state:
         description:
           - State of the datacenter
         required: True
-        choices: ["present", "absent"]
+        choices: ["present"]
         default: "present"
 '''
 
 EXAMPLES = '''
-
   - name: Upload templates
     abiquo_template:
       api_url: http://localhost:8009/api
       api_user: admin
       api_pass: xabiquo
-      dc_id: 4
+      datacenter_id: 4
       template_file_path: /home/xrins/file.ova
       state: present
-
 '''
 
 
@@ -115,7 +106,7 @@ def core(module):
     enterprise_id = module.params['enterprise_id']
     api_user = module.params['abiquo_api_user']
     api_pass = module.params['abiquo_api_pass']
-    dc_id = module.params['dc_id']
+    datacenter_id = module.params['datacenter_id']
     guest_setup_type = module.params['guest_setup_type']
     template_name = module.params['template_name']
 
@@ -126,9 +117,9 @@ def core(module):
     api = common.client
 
     try:
-        am_uri = get_am_uri(api, dc_id)
+        am_uri = get_am_uri(api, datacenter_id)
         location = upload_ova(am_uri, api_user, api_pass, enterprise_id, template_file_path)
-        template_object = edit_uploaded_ova(api, enterprise_id, dc_id, location, guest_setup_type, template_name)
+        template_object = edit_uploaded_ova(api, enterprise_id, datacenter_id, location, guest_setup_type, template_name)
         module.exit_json(
             msg='Template with ID {} uploaded'.format(template_object.id),
             changed=True,
@@ -136,45 +127,50 @@ def core(module):
     except Exception as ex:
         module.fail_json(msg=ex)
 
-def get_am_uri(api, dc_id):
-    code, remoteservices = api.admin.datacenters(dc_id).remoteservices.get()
-    check_response(200, code, remoteservices)
-    for remoteservice in remoteservices:
-        if remoteservice.type == "APPLIANCE_MANAGER":
-            return remoteservice.uri
+
+def get_am_uri(api, datacenter_id):
+    code, remote_services = api.admin.datacenters(datacenter_id).remoteservices.get()
+    check_response(200, code, remote_services)
+    for remote_service in remote_services:
+        if remote_service.type == "APPLIANCE_MANAGER":
+            return remote_service.uri
     raise Exception("Appliance manager not found")
 
+
 def upload_ova(am_url, api_user, api_pass, enterprise_id, template_file_path):
-    template_response = template.upload(am_url, api_user, api_pass, enterprise_id, template_file_path)
+    template_response = template_module.upload(am_url, api_user, api_pass, enterprise_id, template_file_path)
     if template_response.status_code == 201:
         return template_response.headers['Location']
     raise Exception("AM response: {}".format(template_response.status_code))
+
 
 def get_first_element(template_object):
     for template in template_object:
         return template
     raise Exception("Template object has no elements in collection")
 
-def edit_uploaded_ova(api, enterprise_id, dc_id, location, guest_setup_type, template_name):
+
+def edit_uploaded_ova(api, enterprise_id, datacenter_id, location, guest_setup_type, template_name):
     template_disk_path = location.split('/templates/')[1]
-    templates_object = template.find_template_by_path(api, enterprise_id, template_disk_path, dc_id)
+    templates_object = template_module.find_template_by_path(api, enterprise_id, template_disk_path, datacenter_id)
     template_object = get_first_element(templates_object)
     if template_name is not None:
-        template_object.name =  template_name
+        template_object.name = template_name
     if guest_setup_type is not None:
-        template_object.guestSetup =  guest_setup_type
-    c,response = template_object.put()
+        template_object.guestSetup = guest_setup_type
+    c, response = template_object.put()
     if c == 200:
         return response
     raise Exception("API response when editing: {}".format(response.status_code))
-    
+
+
 def main():
     arg_spec = abiquo_argument_spec()
     arg_spec.update(
         abiquo_api_url=dict(default=None, required=True),
         template_name=dict(default=None, required=False),
         enterprise_id=dict(default=None, required=True),
-        dc_id=dict(default=None, required=True),
+        datacenter_id=dict(default=None, required=True),
         template_file_path=dict(default=None, required=True),
         guest_setup_type=dict(
             default=None,
