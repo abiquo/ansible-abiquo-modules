@@ -109,6 +109,13 @@ def upload(am_url, api_user, api_pass, enterpriseId, template_file_path):
     )
     return response
 
+def find_template_by_path(api, enterpriseId, template_disk_path, dcrepo_id):
+    #find template ID filtering by path (not the same function as the next one)
+    code, template = api.admin.enterprises(enterpriseId).datacenterrepositories(dcrepo_id).virtualmachinetemplates.get(params={"path": template_disk_path})
+    check_response(200, code, template)
+    return template
+
+#It was previously created but it needs template_id, it does not make sense
 def find_by_disk_path(dc_repo, template_id):
     code, templates = dc_repo.follow('virtualmachinetemplates').get()
     check_response(200, code, templates)
