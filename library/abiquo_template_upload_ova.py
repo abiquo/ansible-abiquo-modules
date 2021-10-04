@@ -6,6 +6,7 @@
 # https://www.gnu.org/licenses/gpl-3.0.txt)
 
 import traceback
+import time
 from ansible.module_utils.abiquo import template as template_module
 from ansible.module_utils.abiquo.common import abiquo_argument_spec
 from ansible.module_utils.abiquo.common import AbiquoCommon
@@ -153,7 +154,12 @@ def get_first_element(template_object):
 def edit_uploaded_ova(api, enterprise_id, datacenter_id, location, guest_setup_type, template_name):
     template_disk_path = location.split('/templates/')[1]
     templates_object = template_module.find_template_by_path(api, enterprise_id, template_disk_path, datacenter_id)
-    template_object = get_first_element(templates_object)
+    time.sleep(60) # Delay for 1 minute (60 seconds)
+    try:
+        template_object = get_first_element(templates_object)
+    except Exception as e:
+        raise Exception(str(e) + ". Current template path is " + template_disk_path)
+        
     if template_name is not None:
         template_object.name = template_name
     if guest_setup_type is not None:
