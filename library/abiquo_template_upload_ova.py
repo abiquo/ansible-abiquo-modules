@@ -7,6 +7,7 @@
 
 import traceback
 import time
+import json
 from ansible.module_utils.abiquo import template as template_module
 from ansible.module_utils.abiquo.common import abiquo_argument_spec
 from ansible.module_utils.abiquo.common import AbiquoCommon
@@ -120,6 +121,7 @@ def core(module):
     try:
         am_uri = get_am_uri(api, datacenter_id)
         location = upload_ova(am_uri, api_user, api_pass, enterprise_id, template_file_path)
+        time.sleep(30)
         template_object = edit_uploaded_ova(api, enterprise_id, datacenter_id, location, guest_setup_type, template_name)
         module.exit_json(
             msg='Template with ID {} uploaded'.format(template_object.id),
@@ -148,18 +150,20 @@ def upload_ova(am_url, api_user, api_pass, enterprise_id, template_file_path):
 def get_first_element(template_object):
     for template in template_object:
         return template
-    raise Exception("Template object has no elements in collection")
+    raise Exception("Template object has no elements in collection" )
 
 
 def edit_uploaded_ova(api, enterprise_id, datacenter_id, location, guest_setup_type, template_name):
     template_disk_path = location.split('/templates/')[1]
+    if template_disk_path[-1] == "/":
+        template_disk_path = template_disk_path.rstrip(template_disk_path[-1])
     templates_object = template_module.find_template_by_path(api, enterprise_id, template_disk_path, datacenter_id)
-    time.sleep(60) # Delay for 1 minute (60 seconds)
     try:
         template_object = get_first_element(templates_object)
     except Exception as e:
-        raise Exception(str(e) + ". Current template path is " + template_disk_path)
-        
+        #raise Exception(str(e) + ". Current template path is " + template_disk_path + templates_object.json)
+        raise Exception(templates_object.json)
+
     if template_name is not None:
         template_object.name = template_name
     if guest_setup_type is not None:
