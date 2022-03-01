@@ -129,7 +129,8 @@ def find_by_disk_path(dc_repo, template_id):
 
     return None
 
-
-def delete(template):
-    code, delete = template.delete()
-    check_response(204, code, delete)
+def remove(api, enterprise_id, datacenter_id, template_id, force_remove):
+    code,template_remove = api.admin.enterprises(enterprise_id).datacenterrepositories(datacenter_id).virtualmachinetemplates(template_id).delete()
+    if code == 409 and force_remove == "True":
+        code, template_remove = api.admin.enterprises(enterprise_id).datacenterrepositories(datacenter_id).virtualmachinetemplates(template_id).action.deletefile.post()
+    return code, template_remove

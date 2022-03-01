@@ -125,6 +125,7 @@ def core(module):
         template_object = edit_uploaded_ova(api, enterprise_id, datacenter_id, location, guest_setup_type, template_name)
         module.exit_json(
             msg='Template with ID {} uploaded'.format(template_object.id),
+            template_id=template_object.id,
             changed=True,
         )
     except Exception as ex:
