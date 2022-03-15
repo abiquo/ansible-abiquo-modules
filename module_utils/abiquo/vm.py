@@ -18,10 +18,10 @@ def find_vm_in_vdc(vapp, vm_label):
 
 def build_vm_links(module):
     links = []
-
-    hardwareprofile_link = module.params.get('hardwareprofile')
-    hardwareprofile_link['rel'] = 'hardwareprofile'
-    links.append(hardwareprofile_link)
+    if module.params.get('hardwareprofile') != None:
+        hardwareprofile_link = module.params.get('hardwareprofile')
+        hardwareprofile_link['rel'] = 'hardwareprofile'
+        links.append(hardwareprofile_link)
     template_link = module.params.get('template')
     template_link['rel'] = 'virtualmachinetemplate'
     links.append(template_link)
