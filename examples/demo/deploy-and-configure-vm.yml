@@ -1,0 +1,78 @@
+---
+- name: Deploy new VM
+  hosts: localhost
+  vars:
+    abiquo_api_user: "{{ api_user }}"
+    abiquo_api_pass: "{{ api_pass }}"
+    abiquo_api_url: "{{ api_url}}"
+    ent_id: "4"
+    dc_id: "1"
+    vdc_id: "25"
+    vapp_name_abq: "demo"
+    hw_profile: "Standard"
+    template_name: "centos7miniptv"
+  vars_prompt:
+    - name: abiquo_api_user
+      prompt: What is your API username?
+      private: no
+    - name: abiquo_api_pass
+      prompt: What is your API password?
+      private: yes
+    - name: abiquo_api_url
+      prompt: What is your API url?
+      private: no
+    - name: abiquo_vm_label
+      prompt: Which label will the VM have? 
+      private: no
+
+  tasks:
+    - name: create and deploy vm from template
+      include_role:
+        name: abiquo-deploy-vm
+      vars: 
+        api_url: "{{ abiquo_api_url }}"
+        api_user: "{{ abiquo_api_user }}"
+        api_pass: "{{ abiquo_api_pass }}"
+        verify_ssl: false
+        vapp_name: "{{ vapp_name_abq }}"
+        env_vdc: "{{ vdc_id }}"        
+        env_vm_template: "{{ template_name }}"
+        env_vm_hwprofile: "{{ hw_profile }}"
+        vm_label: "{{ abiquo_vm_label }}"
+        vm_tags:
+          role: "test"
+          app: "demo"
+        add_network: "False"
+
+    - name: add just deployed vm to in-mem-inventory
+      add_host: 
+        name: demo-deployed-vm
+        groups: demo-deployed-vm
+        ansible_host: "{{ VM.vm.links | selectattr('rel', 'eq', 'nic0') | list | first | json_query('title')}}"
+        ansible_ssh_user: "root"
+        ansible_ssh_pass: "temporal"
+
+- name: install 
+  hosts: demo-deployed-vm
+  gather_facts: no
+  tasks:
+    - name: Wait for the new VM to be reachable
+      wait_for_connection:
+
+    - name: Install net-tools
+      package:
+        name:
+          - httpd
+          - net-tools
+        state: latest
+    
+    - name: Creating a demo file
+      copy:
+        dest: "/opt/demo.txt"
+        content: |
+          This is a demo:
+          Hello world
+
+
+
+

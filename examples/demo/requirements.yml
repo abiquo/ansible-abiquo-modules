@@ -1,0 +1,6 @@
+---
+collections:
+  - name: awx.awx
+# Abiquo ansible modules role
+- src: git+git@github.com:abiquo/ansible-abiquo-modules.git
+  version: master
