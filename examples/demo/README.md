@@ -30,7 +30,7 @@ template_name: "YourTemplateName"
 Create a file named `vault-password.txt` and make it contain your ansible vault's password (see [credentials for the entry "abiquo-devops-features-demonstration - ansible vault password"](https://vault.bitwarden.com/#/vault)).
 
 ```bash
-make deploy
+ansible-playbook deploy-and-configure-vm.yml -vvv
 ```
 
 ## Contributing
