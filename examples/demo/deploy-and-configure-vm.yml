@@ -9,7 +9,6 @@
     dc_id: "1"
     vdc_id: "25"
     vapp_name_abq: "demo"
-    hw_profile: "Standard"
     template_name: "centos7miniptv"
   vars_prompt:
     - name: abiquo_api_user
@@ -37,7 +36,6 @@
         vapp_name: "{{ vapp_name_abq }}"
         env_vdc: "{{ vdc_id }}"        
         env_vm_template: "{{ template_name }}"
-        env_vm_hwprofile: "{{ hw_profile }}"
         vm_label: "{{ abiquo_vm_label }}"
         vm_tags:
           role: "test"

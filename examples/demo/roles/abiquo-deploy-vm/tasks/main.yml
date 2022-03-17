@@ -41,20 +41,6 @@
 - set_fact:
     template: "{{ etpl.templates | selectattr('name', 'eq', env_vm_template) | list | first }}"
 
-- name: "Locate HW Profile '{{ env_vm_hwprofile }}'"
-  abiquo_vdc_hwprofile_facts:
-    abiquo_api_url: "{{ api_url }}"
-    abiquo_api_user: "{{ api_user }}"
-    abiquo_api_pass: "{{ api_pass }}"
-    abiquo_verify: "{{ verify_ssl }}"
-    vdc: "{{ evdc.vdcs[0] }}"
-    params:
-      has: "{{ env_vm_hwprofile }}"
-  register: ehw
-
-- set_fact:
-    hwprofile_links: "{{ ehw.hwprofiles | selectattr('name', 'eq', env_vm_hwprofile) | map(attribute='hwprofile_link') | list }}"
-
 - set_fact:
     standard_tags:
       type: "{{ vm_label }}"
@@ -71,7 +57,6 @@
     abiquo_verify: "{{ verify_ssl }}"
     template: "{{ template.template_link }}"
     vapp: "{{ evapp.vapp_link }}"
-    hardwareprofile: "{{ hwprofile_links | first }}"
     label: "{{ vm_label }}"
     tags: "{{ vm_tags | default({}) | combine(standard_tags) }}"
     variables: "{{ abiquo_variables | default({})}}"
@@ -102,7 +87,6 @@
     abiquo_verify: "{{ verify_ssl }}"
     template: "{{ template.template_link }}"
     vapp: "{{ evapp.vapp_link }}"
-    hardwareprofile: "{{ hwprofile_links | first }}"
     label: "{{ vm_label }}"
   register: VM
   until: "{{ VM.vm.links | selectattr('rel', 'eq', 'nic0') | list | length > 0 }}"
