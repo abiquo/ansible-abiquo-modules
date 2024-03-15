@@ -189,7 +189,12 @@ class AbiquoCommon(object):
             task_link = task._extract_link('self')
             task_link['type'] = "application/vnd.abiquo.task+json"
 
-            task = self.get_dto_from_link(task_link)
+            try:
+                task = self.get_dto_from_link(task_link)
+            except:
+                # Abiquo sometimes returns 401
+                time.sleep(delay)
+                task = self.get_dto_from_link(task_link)
 
             if task.state.startswith('FINISHED'):
                 return task
